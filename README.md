@@ -58,6 +58,12 @@ pip install -r requirements.txt
 pip install . 
 ```
 
+**Note for macOS users**: If you encounter issues with `pip` pointing to the wrong Python (e.g., system Python 3.11 instead of conda Python 3.7), use `python -m pip` instead:
+```Shell
+python -m pip install -r requirements.txt
+python -m pip install .
+```
+
 The experiments are conducted on the MetaDrive simulator, and we use DI-engine to implement some baseline RL methods (SAC, PPO) and manage the multi-process to collect data with multiple environments asynchronously.
 
 # RL training

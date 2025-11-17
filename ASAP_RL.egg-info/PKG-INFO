@@ -1,0 +1,20 @@
+Metadata-Version: 1.2
+Name: ASAP-RL
+Version: 0.1
+Summary: Reinforcement learning algorithms for autonomous driving
+Home-page: UNKNOWN
+Author: AUTHOR
+License: Apache License, Version 2.0
+Description: ASAP-RL
+Keywords: DL RL AD Platform
+Platform: UNKNOWN
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Intended Audience :: Science/Research/Developers
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Operating System :: POSIX :: Linux
+Classifier: Operating System :: Microsoft :: Windows
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Topic :: Scientific/Engineering :: Artificial Intelligence
+Requires-Python: >=3.6
