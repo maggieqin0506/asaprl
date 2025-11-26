@@ -66,6 +66,8 @@ python -m pip install .
 
 The experiments are conducted on the MetaDrive simulator, and we use DI-engine to implement some baseline RL methods (SAC, PPO) and manage the multi-process to collect data with multiple environments asynchronously.
 
+**📖 For detailed instructions on running the code and reducing memory requirements, see [RUNNING_GUIDE.md](RUNNING_GUIDE.md)**
+
 # RL training
 See the training commands in the directory ```launch_command/training_commands``` to reproduce the experiments in the paper. The directory indluces files below:
 1. highway: commands to run the comparison experiments on the highway scenario
