@@ -1,3 +1,9 @@
 
 log/saved_model/
 saved_model/
+*.pickle
+*.pkl
+*.pyc
+*.pyc
+*.pyc
+*.local

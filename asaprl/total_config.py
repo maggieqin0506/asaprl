@@ -19,6 +19,7 @@ exp_config = {
             'traffic_density': 0.3,
             'seq_traj_len': 10,
             'use_lateral': True,
+            'dense_reward': False,
             'DECODER_LOAD_DIR': 'pretrain_ckpt_files/seq_len_10_decoder_ckpt',
             'vae_latent_dim': 2,
             'traj_mode': 'decoder',

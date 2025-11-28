@@ -10,98 +10,6 @@ import pickle
 import copy
 from asaprl.policy.planning_model import PathParam, SpeedParam, dynamic_constraint, dist_constraint, motion_skill_model
 
-def compute_trajectory_smoothness_penalty(traj):
-    """
-    Compute smoothness penalty for a trajectory to encourage smoother paths.
-    Penalizes large changes in direction, curvature, and speed.
-    """
-    if len(traj) < 3:
-        return 0.0
-    
-    # Penalize large changes in direction (yaw changes)
-    yaw_changes = np.abs(np.diff(traj[:, 3]))
-    yaw_smoothness = np.sum(yaw_changes ** 2)
-    
-    # Penalize large changes in curvature (second derivative of position)
-    if len(traj) >= 3:
-        pos_2nd_deriv = np.diff(traj[:, :2], n=2, axis=0)
-        curvature_penalty = np.sum(np.linalg.norm(pos_2nd_deriv, axis=1) ** 2)
-    else:
-        curvature_penalty = 0.0
-    
-    # Penalize large changes in speed (increased weight for speed smoothness)
-    speed_changes = np.abs(np.diff(traj[:, 2]))
-    speed_smoothness = np.sum(speed_changes ** 2)
-    
-    # Also penalize jerk (rate of change of acceleration) for speed
-    if len(traj) >= 4:
-        speed_2nd_deriv = np.diff(traj[:, 2], n=2)
-        speed_jerk = np.sum(speed_2nd_deriv ** 2)
-    else:
-        speed_jerk = 0.0
-    
-    # Weighted combination with higher weight on speed smoothness
-    yaw_weight = 0.1
-    curvature_weight = 0.1
-    speed_weight = 0.5  # Increased from 0.1 to prioritize speed smoothness
-    jerk_weight = 0.3    # Additional penalty for acceleration changes
-    
-    return (yaw_weight * yaw_smoothness + 
-            curvature_weight * curvature_penalty + 
-            speed_weight * speed_smoothness +
-            jerk_weight * speed_jerk)
-
-def compute_trajectory_shape_distance(traj1, traj2):
-    """
-    Compute trajectory-level distance that considers overall shape rather than point-wise differences.
-    Uses a combination of:
-    1. Endpoint distance (important for overall trajectory matching)
-    2. Average displacement (overall shape similarity)
-    3. Path length difference (trajectory scale similarity)
-    """
-    # Endpoint distance (weighted more heavily as it represents overall trajectory goal)
-    endpoint_weight = 2.0
-    endpoint_dist = np.linalg.norm(traj1[-1, :2] - traj2[-1, :2])
-    
-    # Average displacement across trajectory
-    avg_displacement = np.mean(np.linalg.norm(traj1[:, :2] - traj2[:, :2], axis=1))
-    
-    # Path length difference (encourages similar trajectory scales)
-    def compute_path_length(traj):
-        if len(traj) < 2:
-            return 0.0
-        diffs = np.diff(traj[:, :2], axis=0)
-        return np.sum(np.linalg.norm(diffs, axis=1))
-    
-    path_len1 = compute_path_length(traj1)
-    path_len2 = compute_path_length(traj2)
-    path_length_diff = abs(path_len1 - path_len2)
-    
-    # Speed profile difference (average speed difference) - increased weight
-    speed_diff = np.mean(np.abs(traj1[:, 2] - traj2[:, 2]))
-    speed_diff_weight = 2.0  # Increased from 1.0 to better match speed profiles
-    
-    # Speed profile smoothness difference (penalize if recovered speed is less smooth)
-    if len(traj1) > 1 and len(traj2) > 1:
-        speed_smoothness_ref = np.var(np.diff(traj2[:, 2]))  # Variance of speed changes in reference
-        speed_smoothness_gen = np.var(np.diff(traj1[:, 2]))  # Variance of speed changes in generated
-        speed_smoothness_penalty = abs(speed_smoothness_gen - speed_smoothness_ref)
-    else:
-        speed_smoothness_penalty = 0.0
-    
-    # Yaw difference (average yaw difference)
-    yaw_diff = np.mean(np.abs(traj1[:, 3] - traj2[:, 3]))
-    
-    # Combined trajectory-level distance with better speed matching
-    shape_distance = (endpoint_weight * endpoint_dist + 
-                      avg_displacement + 
-                      0.5 * path_length_diff + 
-                      speed_diff_weight * speed_diff +
-                      0.5 * speed_smoothness_penalty +  # Penalize speed smoothness mismatch
-                      yaw_diff)
-    
-    return shape_distance
-
 def cost_function(u, *args):
     current_v = args[0]
     current_a = args[1]
@@ -113,13 +21,9 @@ def cost_function(u, *args):
     v1 = u[2]
     generate_traj, _, _, _  = motion_skill_model(lat1, yaw1, current_v, current_a, v1, horizon)
 
-    # Use trajectory-level distance instead of point-wise differences
-    # This optimizes the overall trajectory shape rather than individual segments
-    cost = compute_trajectory_shape_distance(generate_traj, reference_traj)
-    
-    # Add smoothness penalty to encourage smoother trajectories
-    cost += compute_trajectory_smoothness_penalty(generate_traj)
-    
+    cost = np.sum(np.sqrt(np.sum(np.square(generate_traj[:,:2] - reference_traj[:,:2]), axis=1)))
+    cost += np.sum(np.sqrt(np.square(generate_traj[:,2] - reference_traj[:,2])))
+    cost += np.sum(np.sqrt(np.square(generate_traj[:,3] - reference_traj[:,3])))
     return cost 
 
 def recover_parameter(reference_traj, current_v, current_a, horizon, lat_bound = 10):
