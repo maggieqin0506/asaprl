@@ -21,9 +21,18 @@ def cost_function(u, *args):
     v1 = u[2]
     generate_traj, _, _, _  = motion_skill_model(lat1, yaw1, current_v, current_a, v1, horizon)
 
-    cost = np.sum(np.sqrt(np.sum(np.square(generate_traj[:,:2] - reference_traj[:,:2]), axis=1)))
-    cost += np.sum(np.sqrt(np.square(generate_traj[:,2] - reference_traj[:,2])))
-    cost += np.sum(np.sqrt(np.square(generate_traj[:,3] - reference_traj[:,3])))
+    # motion_skill_model returns horizon+1 points, skip the first point (initial position) to match reference_traj
+    generate_traj = generate_traj[1:, :]
+
+    # Handle both 2D trajectory (x, y) from rule expert and 4D trajectory (x, y, speed, yaw) from RL expert
+    if reference_traj.shape[1] == 2:
+        # Rule expert data: only compare x, y positions
+        cost = np.sum(np.sqrt(np.sum(np.square(generate_traj[:,:2] - reference_traj[:,:2]), axis=1)))
+    else:
+        # RL expert data: compare x, y, speed, yaw
+        cost = np.sum(np.sqrt(np.sum(np.square(generate_traj[:,:2] - reference_traj[:,:2]), axis=1)))
+        cost += np.sum(np.sqrt(np.square(generate_traj[:,2] - reference_traj[:,2])))
+        cost += np.sum(np.sqrt(np.square(generate_traj[:,3] - reference_traj[:,3])))
     return cost 
 
 def recover_parameter(reference_traj, current_v, current_a, horizon, lat_bound = 10):
@@ -83,11 +92,12 @@ def annotate(one_traj, one_latent_var, one_current_spd):
     return one_recovered_latent_var
 # annotate raw demonstration and save annotated demonstration
 class annotate_data():
-    def __init__(self, scenario, skill_length = 10):
+    def __init__(self, scenario, skill_length = 10, max_files=0):
         self.scenario = scenario
         self.skill_length = skill_length
-        self.load_data_path = './demonstration_RL_expert/{}/'.format(self.scenario)
-        self.save_data_path = './demonstration_RL_expert/{}_annotated/'.format(self.scenario)
+        self.max_files = max_files
+        self.load_data_path = 'demonstration_rule_expert/{}/'.format(self.scenario) 
+        self.save_data_path = 'demonstration_RL_expert/{}_annotated/'.format(self.scenario)        
         if not os.path.exists(self.save_data_path):
             os.makedirs(self.save_data_path)
         self.annotate_all_data()
@@ -114,10 +124,21 @@ class annotate_data():
             ''' annotate data '''
             annotate_one_file_data = copy.deepcopy(one_file_data)
             annotate_one_file_data['recovered_latent_var'] = []
-            for latent_var_idx, one_latent_var in enumerate(one_file_data['latent_var']):
-                print('file {} of {}, data {} of {}'.format(file_idx+1, len(all_file_lst), latent_var_idx, len(one_file_data['latent_var'])))
+
+            # Handle both RL expert data (with 'latent_var') and rule expert data (with 'action')
+            if 'latent_var' in one_file_data:
+                # RL expert data format
+                latent_vars = one_file_data['latent_var']
+                speeds = one_file_data['current_spd']
+            else:
+                # Rule expert data format: use 'action' as latent_var and 'vehicle_start_speed' as current_spd
+                latent_vars = one_file_data['action']
+                speeds = one_file_data['vehicle_start_speed']
+
+            for latent_var_idx, one_latent_var in enumerate(latent_vars):
+                print('file {} of {}, data {} of {}'.format(file_idx+1, len(all_file_lst), latent_var_idx, len(latent_vars)))
                 one_traj = one_file_data['rela_state'][latent_var_idx]
-                one_spd = one_file_data['current_spd'][latent_var_idx].item()
+                one_spd = speeds[latent_var_idx].item() if hasattr(speeds[latent_var_idx], 'item') else speeds[latent_var_idx]
                 one_recovered_latent_var = annotate(one_traj, one_latent_var, one_spd)
                 annotate_one_file_data['recovered_latent_var'].append(one_recovered_latent_var)
 

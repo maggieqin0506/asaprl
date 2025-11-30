@@ -14,9 +14,12 @@ parser.add_argument('--batch_size', type=int, default=32)
 parser.add_argument('--exp_name', type=str, default='test')
 parser.add_argument('--learning_rate', type=float, default=0.001)
 parser.add_argument('--n_epochs', type=int, default=100)
+# ADDED: Max files argument for consistency
+parser.add_argument('--max_files', type=int, default=0, help='Maximum number of .pickle files to process. 0 means all files.')
 print("device: ", torch.device("cuda" if torch.cuda.is_available() else "cpu"))
 args = parser.parse_args()
 params = hyper_parameter(args)
 params.mkdir_write_params()
 
-annotate_data(params.scenario, params.batch_size)
+# MODIFIED: Pass max_files argument
+annotate_data(params.scenario, params.batch_size, max_files=args.max_files)
