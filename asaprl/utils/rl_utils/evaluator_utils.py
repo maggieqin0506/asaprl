@@ -287,7 +287,7 @@ class MetadriveExpertEvaluator(InteractionSerialEvaluator):
                 obs = to_tensor(obs, dtype=torch.float32)
                 policy_output = self._policy.forward(obs)
                 actions = {i: a['action'] for i, a in policy_output.items()}
-                logits = {i: a['logit'] for i, a in policy_output.items()}
+                logits = {i: a.get('logit', None) for i, a in policy_output.items()}
                 actions = to_ndarray(actions)
                 timesteps = self._env.step(actions)
                 timesteps = to_tensor(timesteps, dtype=torch.float32)

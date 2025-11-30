@@ -51,8 +51,8 @@ metadrive_basic_config = dict(
     exp_name = args.exp_name,
     env=dict(
         metadrive=dict(
-            use_render=True,
-            show_seq_traj = True,
+            use_render=False,
+            show_seq_traj = False,
             use_jerk_penalty = True,
             traffic_density = args.traffic_density,
             seq_traj_len = args.SEQ_TRAJ_LEN,
@@ -65,13 +65,13 @@ metadrive_basic_config = dict(
             reward_average_length = args.reward_average_length,
             show_interface = False,
             camera_height = 70,
-            use_chase_camera_follow_lane = True
+            use_chase_camera_follow_lane = False
             ),
         manager=dict(
             shared_memory=False,
             max_retry=5,
             retry_type='renew',
-            context='spawn',
+            context=None,
         ),
         n_evaluator_episode=10,
         stop_value=99999,
@@ -149,7 +149,8 @@ def main(cfg):
         policy._load_state_dict_learn(trained_model)
 
     tb_logger = SummaryWriter('./log/{}/'.format(cfg.exp_name))
-    evaluator = MetadriveEvaluator(cfg.policy.eval.evaluator, evaluator_env, policy.eval_mode, tb_logger, exp_name=cfg.exp_name)
+    from asaprl.utils.rl_utils.evaluator_utils import MetadriveExpertEvaluator
+    evaluator = MetadriveExpertEvaluator(cfg.policy.eval.evaluator, evaluator_env, policy.eval_mode, tb_logger, exp_name=cfg.exp_name)
 
     # stop, rate = evaluator.eval(model=policy._eval_model)
     stop, rate = evaluator.eval()
