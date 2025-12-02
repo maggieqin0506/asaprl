@@ -8,6 +8,7 @@ import random
 import os
 import pickle
 import copy
+from scipy.ndimage import gaussian_filter1d
 from asaprl.policy.planning_model import PathParam, SpeedParam, dynamic_constraint, dist_constraint, motion_skill_model
 
 def cost_function(u, *args):
@@ -151,6 +152,46 @@ def recover_parameter_global(all_reference_trajs, all_current_vs, horizon, lat_b
     u_final = u_current
     return u_final
 
+def recover_parameter_fast(all_reference_trajs, all_current_vs, horizon, lat_bound=10, sigma=2.0):
+    """
+    Fast recovery method: Local Optimization + Gaussian Smoothing.
+    Extremely fast but may not respect dynamic constraints as strictly as global optimization.
+    """
+    num_segments = len(all_reference_trajs)
+    u_list = []
+    
+    print(f"Running FAST recovery (Local Opt + Smoothing sigma={sigma})...")
+    
+    # 1. Local Optimization (Parallelizable in theory, but loop is fast enough here)
+    for i in range(num_segments):
+        current_v = all_current_vs[i]
+        reference_traj = all_reference_trajs[i]
+        
+        # Initial guess
+        u_local_init = np.array([0, 0, 5]) 
+        bounds = [[-lat_bound+0.1, lat_bound-0.1], [-30+0.1, 30-0.1], [0+0.1, 10-0.1]]
+        
+        # Clamp initial
+        for j in range(3):
+             lower, upper = bounds[j]
+             u_local_init[j] = np.clip(u_local_init[j], lower + 1e-4, upper - 1e-4)
+
+        # Fast local minimization
+        # L-BFGS-B is good, but for speed we could even reduce tolerance or maxiter
+        res = minimize(cost_function, u_local_init, (current_v, 0, horizon, reference_traj),
+                       method='L-BFGS-B', bounds=bounds, tol=1e-2, options={'maxiter': 10})
+        u_list.append(res.x)
+        
+    u_array = np.array(u_list)
+    
+    # 2. Gaussian Smoothing
+    # Apply smoothing to each parameter dimension independently
+    u_smoothed = np.zeros_like(u_array)
+    for dim in range(3):
+        u_smoothed[:, dim] = gaussian_filter1d(u_array[:, dim], sigma=sigma)
+        
+    return u_smoothed
+
 def transform_planning_param_to_latentvar(lat1, yaw1, v1, lat_range=5):
     action0 = lat1 / lat_range
     action1 = yaw1 / 30
@@ -201,10 +242,9 @@ class annotate_data():
                 all_current_vs.append(current_v)
             
             # Run global recovery
-            # Smoothness weight can be tuned. 
-            # Since cost is ~sum of squared errors (approx 10-100 per segment), and param diffs are small (0-1),
-            # we might need a larger weight to make smoothness matter. Let's try 10.0 first.
-            recovered_params = recover_parameter_global(all_reference_trajs, all_current_vs, horizon=10, lat_bound=5, smoothness_weight=10.0)
+            # Switch to FAST method (Local + Smoothing) as requested
+            # recovered_params = recover_parameter_global(all_reference_trajs, all_current_vs, horizon=10, lat_bound=5, smoothness_weight=10.0)
+            recovered_params = recover_parameter_fast(all_reference_trajs, all_current_vs, horizon=10, lat_bound=5, sigma=2.0)
             
             for i in range(num_samples):
                 lat1, yaw1, v1 = recovered_params[i]
