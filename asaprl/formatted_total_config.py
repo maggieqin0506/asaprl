@@ -15,7 +15,7 @@ main_config = dict(
             shared_memory=False,
             context='spawn',
         ),
-        metadrive={'use_render': False, 'show_seq_traj': False, 'use_jerk_penalty': True, 'traffic_density': 0.3, 'seq_traj_len': 10, 'use_lateral': True, 'DECODER_LOAD_DIR': 'pretrain_ckpt_files/seq_len_10_decoder_ckpt', 'vae_latent_dim': 2, 'traj_mode': 'decoder', 'lat_range': 30, 'camera_height': 70, 'use_chase_camera_follow_lane': True, 'reward_w_pass_car': 0.1, 'reward_w_on_lane': 0, 'reward_w_out_of_road': -5, 'reward_w_crash': -5, 'reward_w_destination': 0, 'reward_w_out_of_time': 0, 'reward_w_progress': 1, 'reward_w_speed': 0},
+        metadrive={'use_render': False, 'show_seq_traj': False, 'use_jerk_penalty': True, 'traffic_density': 0.3, 'seq_traj_len': 10, 'use_lateral': True, 'dense_reward': False, 'DECODER_LOAD_DIR': 'pretrain_ckpt_files/seq_len_10_decoder_ckpt', 'vae_latent_dim': 2, 'traj_mode': 'decoder', 'lat_range': 30, 'camera_height': 70, 'use_chase_camera_follow_lane': True, 'reward_w_pass_car': 0.1, 'reward_w_on_lane': 0, 'reward_w_out_of_road': -5, 'reward_w_crash': -5, 'reward_w_destination': 0, 'reward_w_out_of_time': 0, 'reward_w_progress': 1, 'reward_w_speed': 0},
         n_evaluator_episode=20,
         stop_value=99999,
         collector_env_num=1,

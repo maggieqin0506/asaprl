@@ -54,7 +54,7 @@ metadrive_basic_config = dict(
         ),
         learn=dict(
             epoch_per_collect=2,
-            batch_size=64,
+            batch_size=32,  # Reduced from 64 for lower memory usage
             learning_rate=3e-4,
             value_weight = 0.5,
             adv_norm=False,
@@ -62,7 +62,7 @@ metadrive_basic_config = dict(
             grad_clip_value=10
         ),
         collect=dict(
-            n_sample=200, # 1000
+            n_sample=100, # 1000 (reduced from 200 for lower memory usage)
         ),
         eval=dict(
             evaluator=dict(

@@ -91,7 +91,7 @@ metadrive_basic_config = dict(
         pretraining_iter = args.pretraining_iter,
         learn=dict(
             update_per_collect=100,
-            batch_size=128,
+            batch_size=64,  # Reduced from 128 for lower memory usage
             learning_rate=3e-4,
             alpha = args.alpha,
             learner=dict(
@@ -101,7 +101,7 @@ metadrive_basic_config = dict(
                 ),
         ),
         collect=dict(
-            n_sample=200, # 5000
+            n_sample=100, # 5000 (reduced from 200 for lower memory usage)
         ),
         eval=dict(
             evaluator=dict(
@@ -110,7 +110,7 @@ metadrive_basic_config = dict(
             ),
         other=dict(
             replay_buffer=dict(
-                replay_buffer_size=1000, # 100000
+                replay_buffer_size=500, # 100000 (reduced from 1000 for lower memory usage)
             ),
         ), 
     )
