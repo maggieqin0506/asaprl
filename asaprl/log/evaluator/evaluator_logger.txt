@@ -1,3 +1,55 @@
 [2023-03-07 06:50:28,181][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 34.599998474121094, current episode: 1
 [2023-03-07 06:51:48,747][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 33.900001525878906, current episode: 2
 [2023-03-07 06:53:59,907][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 17.299999237060547, current episode: 1
+[2025-11-27 14:55:20,158][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 62.099998474121094, current episode: 1
+[2025-11-27 14:55:46,430][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 67.69999694824219, current episode: 2
+[2025-11-27 14:56:18,966][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 61.599998474121094, current episode: 3
+[2025-11-27 14:56:49,098][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 69.0, current episode: 4
+[2025-11-27 14:57:23,115][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 62.0, current episode: 5
+[2025-11-27 14:57:48,604][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 65.19999694824219, current episode: 6
+[2025-11-27 14:58:27,476][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 61.5, current episode: 7
+[2025-11-27 14:59:03,165][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 63.900001525878906, current episode: 8
+[2025-11-27 14:59:44,378][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 72.5999984741211, current episode: 9
+[2025-11-27 15:00:17,067][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 69.0, current episode: 10
+[2025-11-27 15:00:51,635][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 64.0999984741211, current episode: 11
+[2025-11-27 15:01:27,501][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 71.80000305175781, current episode: 12
+[2025-11-27 15:02:05,390][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 67.5, current episode: 13
+[2025-11-27 15:02:45,421][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 64.0999984741211, current episode: 14
+[2025-11-27 15:03:19,013][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 66.69999694824219, current episode: 15
+[2025-11-27 15:03:53,808][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 67.4000015258789, current episode: 16
+[2025-11-27 15:04:23,078][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 44.0, current episode: 17
+[2025-11-27 15:04:56,663][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 64.0, current episode: 18
+[2025-11-27 15:05:37,243][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 61.099998474121094, current episode: 19
+[2025-11-27 15:06:17,959][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 71.5999984741211, current episode: 20
+[2025-11-27 15:06:17,964][evaluator_utils.py][line: 550][    INFO] 
++-------+------------+----------------------+---------------+----------------+-------------------------+---------------+---------------------+----------------------+-------------+------------+------------+------------+
+| Name  | train_iter | ckpt_name            | episode_count | envstep_count  | avg_envstep_per_episode | evaluate_time | avg_envstep_per_sec | avg_time_per_episode | reward_mean | reward_std | reward_max | reward_min |
++-------+------------+----------------------+---------------+----------------+-------------------------+---------------+---------------------+----------------------+-------------+------------+------------+------------+
+| Value | -1.000000  | iteration_-1.pth.tar | 20.000000     | 1889080.000000 | 94454.000000            | 690.003686    | 2737.782476         | 0.028985             | 64.844999   | 5.926928   | 72.599998  | 44.000000  |
++-------+------------+----------------------+---------------+----------------+-------------------------+---------------+---------------------+----------------------+-------------+------------+------------+------------+
+[2025-11-27 15:12:17,514][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 61.70000076293945, current episode: 1
+[2025-11-27 15:12:51,598][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 56.20000076293945, current episode: 2
+[2025-11-27 15:13:28,068][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 65.19999694824219, current episode: 3
+[2025-11-27 15:14:03,735][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 60.099998474121094, current episode: 4
+[2025-11-27 15:14:45,513][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 59.29999923706055, current episode: 5
+[2025-11-27 15:15:26,523][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 67.4000015258789, current episode: 6
+[2025-11-27 15:15:58,136][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 62.099998474121094, current episode: 7
+[2025-11-27 15:16:31,723][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 64.19999694824219, current episode: 8
+[2025-11-27 15:17:08,776][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 59.900001525878906, current episode: 9
+[2025-11-27 15:17:41,916][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 62.29999923706055, current episode: 10
+[2025-11-27 15:18:10,770][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 60.79999923706055, current episode: 11
+[2025-11-27 15:18:53,393][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 71.4000015258789, current episode: 12
+[2025-11-27 15:19:34,297][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 70.5, current episode: 13
+[2025-11-27 15:20:16,234][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 70.69999694824219, current episode: 14
+[2025-11-27 15:20:56,930][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 63.900001525878906, current episode: 15
+[2025-11-27 15:21:35,617][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 70.0, current episode: 16
+[2025-11-27 15:22:08,570][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 69.9000015258789, current episode: 17
+[2025-11-27 15:22:41,522][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 67.0999984741211, current episode: 18
+[2025-11-27 15:23:14,718][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 68.9000015258789, current episode: 19
+[2025-11-27 15:23:46,303][evaluator_utils.py][line: 524][    INFO] [EVALUATOR]env 0 finish episode, final reward: 68.9000015258789, current episode: 20
+[2025-11-27 15:23:46,310][evaluator_utils.py][line: 550][    INFO] 
++-------+------------+----------------------+---------------+----------------+-------------------------+---------------+---------------------+----------------------+-------------+------------+------------+------------+
+| Name  | train_iter | ckpt_name            | episode_count | envstep_count  | avg_envstep_per_episode | evaluate_time | avg_envstep_per_sec | avg_time_per_episode | reward_mean | reward_std | reward_max | reward_min |
++-------+------------+----------------------+---------------+----------------+-------------------------+---------------+---------------------+----------------------+-------------+------------+------------+------------+
+| Value | -1.000000  | iteration_-1.pth.tar | 20.000000     | 2028280.000000 | 101414.000000           | 723.905691    | 2801.856686         | 0.027628             | 65.025000   | 4.468543   | 71.400002  | 56.200001  |
++-------+------------+----------------------+---------------+----------------+-------------------------+---------------+---------------------+----------------------+-------------+------------+------------+------------+

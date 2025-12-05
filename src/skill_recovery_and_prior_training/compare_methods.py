@@ -1,329 +1,322 @@
 """
-Comparison script for Original vs Sliding Window skill recovery methods
+Helper script to compare old (point-wise) vs new (trajectory-level) optimization methods.
+This script helps you backup, restore, and compare both methods.
 """
-import pickle
-import numpy as np
+
 import os
+import shutil
+import subprocess
+import sys
+import argparse
+import pickle
+
+def backup_current_version():
+    """Backup current skill_param_recovery.py"""
+    src_file = 'skill_param_recovery.py'
+    backup_file = 'skill_param_recovery_new_backup.py'
+    
+    if os.path.exists(src_file):
+        shutil.copy(src_file, backup_file)
+        print(f"✓ Backed up current version to {backup_file}")
+        return True
+    else:
+        print(f"✗ Error: {src_file} not found!")
+        return False
+
+def create_old_version():
+    """Create the old point-wise optimization version for comparison"""
+    old_code = '''import matplotlib.pyplot as plt
+import math, pdb
+import numpy as np
 import matplotlib.pyplot as plt
-from pathlib import Path
+import time
+from scipy.optimize import minimize
+import random
+import os
+import pickle
+import copy
+from asaprl.policy.planning_model import PathParam, SpeedParam, dynamic_constraint, dist_constraint, motion_skill_model
 
-def load_data(data_dir):
-    """Load all pickle files from a directory"""
-    all_files = sorted([f for f in os.listdir(data_dir) if f.endswith('.pickle')])
-    all_data = []
-    valid_files = []
+def cost_function(u, *args):
+    current_v = args[0]
+    current_a = args[1]
+    horizon = args[2]
+    reference_traj = args[3]
 
-    for file in all_files:
-        try:
-            with open(os.path.join(data_dir, file), 'rb') as f:
-                data = pickle.load(f)
-                all_data.append(data)
-                valid_files.append(file)
-        except Exception as e:
-            print(f"  Warning: Skipping corrupted file {file}: {str(e)}")
-            continue
+    lat1 = u[0]
+    yaw1 = u[1]
+    v1 = u[2]
+    generate_traj, _, _, _  = motion_skill_model(lat1, yaw1, current_v, current_a, v1, horizon)
 
-    return all_data, valid_files
+    cost = np.sum(np.sqrt(np.sum(np.square(generate_traj[:,:2] - reference_traj[:,:2]), axis=1)))
+    cost += np.sum(np.sqrt(np.square(generate_traj[:,2] - reference_traj[:,2])))
+    cost += np.sum(np.sqrt(np.square(generate_traj[:,3] - reference_traj[:,3])))
+    return cost 
 
-def calculate_parameter_differences(original_params, recovered_params):
-    """Calculate differences between original and recovered parameters"""
-    if len(original_params) == 0 or len(recovered_params) == 0:
-        return None
+def recover_parameter(reference_traj, current_v, current_a, horizon, lat_bound = 10):
+    bounds = [[-lat_bound+0.1, lat_bound-0.1], [-30+0.1, 30-0.1], [0+0.1, 10-0.1]]  # lat, yaw1, v1
+    recover_dict = {}
+    print("current_v: ", current_v)
+    current_v = np.clip(np.sqrt(np.sum(np.square(reference_traj[0,2:]))), 0.1, 9.9)
+    print("current_v: ", current_v)
 
-    # Convert to numpy arrays
-    orig = np.array(original_params)
-    recov = np.array(recovered_params)
+    i_lat, i_yaw1, i_v1 = 0, 0, 5
+    for i_yaw1 in [-15, 15]:
+        u_init = np.array([i_lat, i_yaw1, i_v1]) # lat, yaw1, v1
+        u_solution = minimize(cost_function, u_init, (current_v, current_a, horizon, reference_traj),
+                                        method='SLSQP',
+                                        bounds=bounds,
+                                        tol = 1e-5)
+        lat1 = u_solution.x[0]
+        yaw1 = u_solution.x[1]
+        v1 = u_solution.x[2]
+        cost = u_solution.fun
+        recovered_lat1, recovered_yaw1, current_v1, current_a, recovered_v1 = dynamic_constraint(lat1, yaw1, current_v, current_a, v1, horizon)
+        recover_dict[len(recover_dict)] = {'error': cost, 'param': [recovered_lat1, recovered_yaw1, recovered_v1]}
+    min_key = min(recover_dict, key=lambda x: recover_dict[x]['error'])
+    recovered_lat1, recovered_yaw1, recovered_v1 = recover_dict[min_key]['param']
+    print('recovered skill param: lat {}, yaw {}, speed {}'.format(recovered_lat1, recovered_yaw1, recovered_v1))
+    print('recovery trajectory error:', recover_dict[min_key]['error'])
+    return recovered_lat1, recovered_yaw1, recovered_v1
 
-    # Handle length mismatch by using the minimum length
-    min_len = min(len(orig), len(recov))
-    if min_len == 0:
-        return None
+def transform_planning_param_to_latentvar(lat1, yaw1, v1, lat_range=5):
+    action0 = lat1 / lat_range
+    action1 = yaw1 / 30
+    action2 = v1 / 5 - 1
+    return action0, action1, action2
 
-    orig = orig[:min_len]
-    recov = recov[:min_len]
+# annotate function
+def annotate(one_traj, one_latent_var, one_current_spd):
+    current_v = one_current_spd
+    current_a = 0
+    horizon = 10
+    recovered_lat1, recovered_yaw1, recovered_v1 = recover_parameter(one_traj, current_v, current_a, horizon, lat_bound = 5)
+    recovered_latent_var0, recovered_latent_var1, recovered_latent_var2 = transform_planning_param_to_latentvar(recovered_lat1, recovered_yaw1, recovered_v1, lat_range=5)
+    one_recovered_latent_var = np.array([recovered_latent_var0, recovered_latent_var1, recovered_latent_var2])
+    return one_recovered_latent_var
 
-    # Calculate absolute differences
-    diffs = np.abs(orig - recov)
+# annotate raw demonstration and save annotated demonstration
+class annotate_data():
+    def __init__(self, scenario, skill_length = 10):
+        self.scenario = scenario
+        self.skill_length = skill_length
+        self.load_data_path = './demonstration_RL_expert/{}/'.format(self.scenario)
+        self.save_data_path = './demonstration_RL_expert/{}_annotated/'.format(self.scenario)
+        if not os.path.exists(self.save_data_path):
+            os.makedirs(self.save_data_path)
+        self.annotate_all_data()
 
-    return {
-        'mean_diff': np.mean(diffs, axis=0),
-        'std_diff': np.std(diffs, axis=0),
-        'max_diff': np.max(diffs, axis=0),
-        'mae': np.mean(diffs),  # Mean Absolute Error
-        'rmse': np.sqrt(np.mean(diffs**2))  # Root Mean Square Error
-    }
+    def annotate_all_data(self):
+        all_file_lst = os.listdir(self.load_data_path)
+        for file_idx, one_file in enumerate(all_file_lst):
+            one_file_full_path = self.load_data_path + one_file
+            with open(one_file_full_path, 'rb') as handle:
+                one_file_data = pickle.load(handle)
+            annotate_one_file_data = copy.deepcopy(one_file_data)
+            annotate_one_file_data['recovered_latent_var'] = []
+            for latent_var_idx, one_latent_var in enumerate(one_file_data['latent_var']):
+                print('file {} of {}, data {} of {}'.format(file_idx+1, len(all_file_lst), latent_var_idx, len(one_file_data['latent_var'])))
+                one_traj = one_file_data['rela_state'][latent_var_idx]
+                one_spd = one_file_data['current_spd'][latent_var_idx].item()
+                one_recovered_latent_var = annotate(one_traj, one_latent_var, one_spd)
+                annotate_one_file_data['recovered_latent_var'].append(one_recovered_latent_var)
 
-def calculate_smoothness(params):
-    """Calculate smoothness of parameter trajectory (lower is smoother)"""
-    if len(params) < 2:
-        return None
+            with open(self.save_data_path + '{}_expert_data_{}.pickle'.format(self.scenario, file_idx+1), 'wb') as handle:
+                pickle.dump(annotate_one_file_data, handle, protocol=pickle.HIGHEST_PROTOCOL)
+'''
+    
+    with open('skill_param_recovery_old.py', 'w') as f:
+        f.write(old_code)
+    print("✓ Created old version backup: skill_param_recovery_old.py")
 
-    params = np.array(params)
-    # Calculate differences between consecutive parameters
-    diffs = np.diff(params, axis=0)
+def restore_old_version():
+    """Restore old version"""
+    old_file = 'skill_param_recovery_old.py'
+    src_file = 'skill_param_recovery.py'
+    
+    if os.path.exists(old_file):
+        shutil.copy(old_file, src_file)
+        print(f"✓ Restored old version to {src_file}")
+        return True
+    else:
+        print(f"✗ Error: {old_file} not found! Run with --create-old first.")
+        return False
 
-    # Smoothness metrics
-    smoothness = {
-        'mean_variation': np.mean(np.abs(diffs), axis=0),
-        'std_variation': np.std(diffs, axis=0),
-        'total_variation': np.sum(np.abs(diffs), axis=0)
-    }
+def restore_new_version():
+    """Restore new version"""
+    backup_file = 'skill_param_recovery_new_backup.py'
+    src_file = 'skill_param_recovery.py'
+    
+    if os.path.exists(backup_file):
+        shutil.copy(backup_file, src_file)
+        print(f"✓ Restored new version to {src_file}")
+        return True
+    else:
+        print(f"✗ Error: {backup_file} not found!")
+        return False
 
-    return smoothness
+def run_evaluation(scenario, method_name):
+    """Run evaluation script"""
+    print(f"\n{'='*80}")
+    print(f"Running evaluation for {method_name} method...")
+    print(f"{'='*80}\n")
+    
+    result_file = f'evaluation_results_{method_name}_{scenario}.pkl'
+    cmd = [
+        sys.executable,
+        'evaluate_recovery_improvement.py',
+        '--scenario', scenario,
+        '--output_file', result_file
+    ]
+    
+    result = subprocess.run(cmd, cwd=os.path.dirname(os.path.abspath(__file__)))
+    success = result.returncode == 0
+    
+    # Check if result file was actually created
+    if success and not os.path.exists(result_file):
+        print(f"Warning: Evaluation completed but result file {result_file} was not created.")
+        success = False
+    
+    return success, result_file
 
-def compare_methods(original_dir, sliding_dir, output_dir='comparison_results'):
-    """Compare original and sliding window methods"""
+def compare_results(old_result_file, new_result_file):
+    """Compare results from old and new methods"""
+    with open(old_result_file, 'rb') as f:
+        old_results = pickle.load(f)
+    
+    with open(new_result_file, 'rb') as f:
+        new_results = pickle.load(f)
+    
+    print("\n" + "="*80)
+    print("COMPARISON: OLD (Point-wise) vs NEW (Trajectory-level) METHOD")
+    print("="*80)
+    
+    # Smoothness comparison
+    if 'smoothness' in old_results and 'smoothness' in new_results:
+        print("\n--- SMOOTHNESS METRICS (Lower is Better) ---")
+        for key in old_results['smoothness'].keys():
+            old_val = old_results['smoothness'][key]
+            new_val = new_results['smoothness'][key]
+            improvement = ((old_val - new_val) / old_val * 100) if old_val > 0 else 0
+            symbol = "✓" if improvement > 0 else "✗"
+            print(f"{symbol} {key:25s}: OLD={old_val:10.6f}  NEW={new_val:10.6f}  Improvement={improvement:6.2f}%")
+    
+    # Matching comparison
+    if 'matching' in old_results and 'matching' in new_results:
+        print("\n--- TRAJECTORY MATCHING METRICS (Lower is Better) ---")
+        for key in old_results['matching'].keys():
+            old_val = old_results['matching'][key]
+            new_val = new_results['matching'][key]
+            improvement = ((old_val - new_val) / old_val * 100) if old_val > 0 else 0
+            symbol = "✓" if improvement > 0 else "✗"
+            print(f"{symbol} {key:25s}: OLD={old_val:10.6f}  NEW={new_val:10.6f}  Improvement={improvement:6.2f}%")
+    
+    # Continuity comparison
+    if 'continuity' in old_results and 'continuity' in new_results:
+        print("\n--- SEGMENT CONTINUITY METRICS (Lower is Better) ---")
+        for key in old_results['continuity'].keys():
+            old_val = old_results['continuity'][key]
+            new_val = new_results['continuity'][key]
+            improvement = ((old_val - new_val) / old_val * 100) if old_val > 0 else 0
+            symbol = "✓" if improvement > 0 else "✗"
+            print(f"{symbol} {key:25s}: OLD={old_val:10.6f}  NEW={new_val:10.6f}  Improvement={improvement:6.2f}%")
+    
+    # Parameter error comparison
+    if 'param_error' in old_results and 'param_error' in new_results:
+        print("\n--- PARAMETER RECOVERY ACCURACY (Lower is Better) ---")
+        for key in old_results['param_error'].keys():
+            old_val = old_results['param_error'][key]
+            new_val = new_results['param_error'][key]
+            improvement = ((old_val - new_val) / old_val * 100) if old_val > 0 else 0
+            symbol = "✓" if improvement > 0 else "✗"
+            print(f"{symbol} {key:25s}: OLD={old_val:10.6f}  NEW={new_val:10.6f}  Improvement={improvement:6.2f}%")
+    
+    print("\n" + "="*80)
 
-    # Create output directory
-    os.makedirs(output_dir, exist_ok=True)
-
-    print("="*60)
-    print("SKILL RECOVERY METHOD COMPARISON")
-    print("="*60)
-
-    # Load data
-    print("\nLoading data...")
-    original_data, orig_files = load_data(original_dir)
-    sliding_data, slide_files = load_data(sliding_dir)
-
-    print(f"Original method: {len(original_data)} files")
-    print(f"Sliding window method: {len(sliding_data)} files")
-
-    # Compare common files
-    common_files = set(orig_files) & set(slide_files)
-    print(f"\nComparing {len(common_files)} common files...")
-
-    results = {
-        'original': {
-            'params': [],
-            'smoothness': []
-        },
-        'sliding': {
-            'params': [],
-            'smoothness': []
-        },
-        'differences': []
-    }
-
-    for file_name in sorted(common_files):
-        # Load file data
-        orig_idx = orig_files.index(file_name)
-        slide_idx = slide_files.index(file_name)
-
-        orig_data = original_data[orig_idx]
-        slide_data = sliding_data[slide_idx]
-
-        # Extract recovered parameters
-        orig_params = orig_data.get('recovered_latent_var', [])
-        slide_params = slide_data.get('sliding_recovered_latent_var',
-                                      slide_data.get('recovered_latent_var', []))
-
-        if len(orig_params) > 0 and len(slide_params) > 0:
-            results['original']['params'].extend(orig_params)
-            results['sliding']['params'].extend(slide_params)
-
-            # Calculate smoothness for this file
-            orig_smooth = calculate_smoothness(orig_params)
-            slide_smooth = calculate_smoothness(slide_params)
-
-            if orig_smooth:
-                results['original']['smoothness'].append(orig_smooth)
-            if slide_smooth:
-                results['sliding']['smoothness'].append(slide_smooth)
-
-            # Calculate differences
-            diff = calculate_parameter_differences(orig_params, slide_params)
-            if diff:
-                results['differences'].append(diff)
-
-    # Aggregate results
-    print("\n" + "="*60)
-    print("COMPARISON RESULTS")
-    print("="*60)
-
-    # 1. Parameter Recovery Accuracy (comparing the two methods)
-    print("\n1. PARAMETER RECOVERY DIFFERENCES")
-    print("-" * 40)
-    if results['differences']:
-        avg_mae = np.mean([d['mae'] for d in results['differences']])
-        avg_rmse = np.mean([d['rmse'] for d in results['differences']])
-        print(f"Mean Absolute Error (MAE): {avg_mae:.6f}")
-        print(f"Root Mean Square Error (RMSE): {avg_rmse:.6f}")
-
-        # Per-dimension differences
-        mean_diffs = np.mean([d['mean_diff'] for d in results['differences']], axis=0)
-        print(f"\nMean differences per dimension:")
-        print(f"  Lateral:  {mean_diffs[0]:.6f}")
-        print(f"  Yaw:      {mean_diffs[1]:.6f}")
-        print(f"  Velocity: {mean_diffs[2]:.6f}")
-
-    # 2. Smoothness Comparison
-    print("\n2. PARAMETER SMOOTHNESS (lower is smoother)")
-    print("-" * 40)
-
-    if results['original']['smoothness'] and results['sliding']['smoothness']:
-        # Original method smoothness
-        orig_mean_var = np.mean([s['mean_variation'] for s in results['original']['smoothness']], axis=0)
-        slide_mean_var = np.mean([s['mean_variation'] for s in results['sliding']['smoothness']], axis=0)
-
-        print("\nOriginal Method:")
-        print(f"  Mean variation - Lateral:  {orig_mean_var[0]:.6f}")
-        print(f"  Mean variation - Yaw:      {orig_mean_var[1]:.6f}")
-        print(f"  Mean variation - Velocity: {orig_mean_var[2]:.6f}")
-        print(f"  Overall smoothness: {np.mean(orig_mean_var):.6f}")
-
-        print("\nSliding Window Method:")
-        print(f"  Mean variation - Lateral:  {slide_mean_var[0]:.6f}")
-        print(f"  Mean variation - Yaw:      {slide_mean_var[1]:.6f}")
-        print(f"  Mean variation - Velocity: {slide_mean_var[2]:.6f}")
-        print(f"  Overall smoothness: {np.mean(slide_mean_var):.6f}")
-
-        improvement = ((orig_mean_var - slide_mean_var) / orig_mean_var) * 100
-        print(f"\nImprovement (%):")
-        print(f"  Lateral:  {improvement[0]:.2f}%")
-        print(f"  Yaw:      {improvement[1]:.2f}%")
-        print(f"  Velocity: {improvement[2]:.2f}%")
-        print(f"  Overall:  {np.mean(improvement):.2f}%")
-
-    # 3. Statistical Summary
-    print("\n3. PARAMETER STATISTICS")
-    print("-" * 40)
-
-    if results['original']['params'] and results['sliding']['params']:
-        orig_params_arr = np.array(results['original']['params'])
-        slide_params_arr = np.array(results['sliding']['params'])
-
-        print("\nOriginal Method:")
-        print(f"  Mean: {np.mean(orig_params_arr, axis=0)}")
-        print(f"  Std:  {np.std(orig_params_arr, axis=0)}")
-
-        print("\nSliding Window Method:")
-        print(f"  Mean: {np.mean(slide_params_arr, axis=0)}")
-        print(f"  Std:  {np.std(slide_params_arr, axis=0)}")
-
-    # 4. Create visualizations
-    print("\n4. GENERATING VISUALIZATIONS...")
-    print("-" * 40)
-
-    if results['original']['params'] and results['sliding']['params']:
-        create_comparison_plots(results, output_dir)
-        print(f"Plots saved to {output_dir}/")
-
-    # Save numerical results
-    results_file = os.path.join(output_dir, 'comparison_metrics.txt')
-    with open(results_file, 'w') as f:
-        f.write("SKILL RECOVERY METHOD COMPARISON\n")
-        f.write("="*60 + "\n\n")
-
-        if results['differences']:
-            f.write("1. PARAMETER RECOVERY DIFFERENCES\n")
-            f.write("-" * 40 + "\n")
-            f.write(f"Mean Absolute Error (MAE): {avg_mae:.6f}\n")
-            f.write(f"Root Mean Square Error (RMSE): {avg_rmse:.6f}\n")
-            f.write(f"\nMean differences per dimension:\n")
-            f.write(f"  Lateral:  {mean_diffs[0]:.6f}\n")
-            f.write(f"  Yaw:      {mean_diffs[1]:.6f}\n")
-            f.write(f"  Velocity: {mean_diffs[2]:.6f}\n\n")
-
-        if results['original']['smoothness'] and results['sliding']['smoothness']:
-            f.write("2. PARAMETER SMOOTHNESS\n")
-            f.write("-" * 40 + "\n")
-            f.write(f"\nOriginal: {np.mean(orig_mean_var):.6f}\n")
-            f.write(f"Sliding:  {np.mean(slide_mean_var):.6f}\n")
-            f.write(f"Improvement: {np.mean(improvement):.2f}%\n")
-
-    print(f"\nResults saved to {results_file}")
-    print("\n" + "="*60)
-
-    return results
-
-def create_comparison_plots(results, output_dir):
-    """Create visualization plots comparing the methods"""
-
-    orig_params = np.array(results['original']['params'])
-    slide_params = np.array(results['sliding']['params'])
-
-    # Limit to first 1000 points for visualization
-    max_points = min(1000, len(orig_params), len(slide_params))
-    orig_params = orig_params[:max_points]
-    slide_params = slide_params[:max_points]
-
-    param_names = ['Lateral', 'Yaw', 'Velocity']
-
-    # Plot 1: Parameter trajectories
-    fig, axes = plt.subplots(3, 1, figsize=(12, 10))
-    for i, (ax, name) in enumerate(zip(axes, param_names)):
-        ax.plot(orig_params[:, i], label='Original', alpha=0.7, linewidth=1)
-        ax.plot(slide_params[:, i], label='Sliding Window', alpha=0.7, linewidth=1)
-        ax.set_ylabel(name)
-        ax.legend()
-        ax.grid(True, alpha=0.3)
-    axes[-1].set_xlabel('Step')
-    axes[0].set_title('Parameter Trajectories Comparison')
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, 'parameter_trajectories.png'), dpi=150)
-    plt.close()
-
-    # Plot 2: Parameter distributions
-    fig, axes = plt.subplots(1, 3, figsize=(15, 4))
-    for i, (ax, name) in enumerate(zip(axes, param_names)):
-        ax.hist(orig_params[:, i], bins=50, alpha=0.5, label='Original', density=True)
-        ax.hist(slide_params[:, i], bins=50, alpha=0.5, label='Sliding Window', density=True)
-        ax.set_xlabel(name)
-        ax.set_ylabel('Density')
-        ax.legend()
-        ax.grid(True, alpha=0.3)
-    plt.suptitle('Parameter Distributions Comparison')
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, 'parameter_distributions.png'), dpi=150)
-    plt.close()
-
-    # Plot 3: Smoothness (variation over time)
-    fig, axes = plt.subplots(3, 1, figsize=(12, 10))
-    for i, (ax, name) in enumerate(zip(axes, param_names)):
-        orig_diff = np.abs(np.diff(orig_params[:, i]))
-        slide_diff = np.abs(np.diff(slide_params[:, i]))
-
-        ax.plot(orig_diff, label='Original', alpha=0.7, linewidth=1)
-        ax.plot(slide_diff, label='Sliding Window', alpha=0.7, linewidth=1)
-        ax.set_ylabel(f'{name} Variation')
-        ax.legend()
-        ax.grid(True, alpha=0.3)
-    axes[-1].set_xlabel('Step')
-    axes[0].set_title('Parameter Variation (Smoothness) Comparison')
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, 'parameter_smoothness.png'), dpi=150)
-    plt.close()
-
-    print("  - parameter_trajectories.png")
-    print("  - parameter_distributions.png")
-    print("  - parameter_smoothness.png")
-
-if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(description='Compare skill recovery methods')
-    parser.add_argument('--original_dir', type=str,
-                       default='demonstration_RL_expert/highway_annotated',
-                       help='Directory with original method results')
-    parser.add_argument('--sliding_dir', type=str,
-                       default='demonstration_RL_expert/highway_sliding_annotated',
-                       help='Directory with sliding window method results')
-    parser.add_argument('--output_dir', type=str,
-                       default='comparison_results',
-                       help='Output directory for comparison results')
-
+def main():
+    parser = argparse.ArgumentParser(description='Compare old vs new recovery methods')
+    parser.add_argument('--scenario', type=str, default='highway',
+                       choices=['highway', 'intersection', 'roundabout'],
+                       help='Scenario to evaluate')
+    parser.add_argument('--backup', action='store_true',
+                       help='Backup current version')
+    parser.add_argument('--create-old', action='store_true',
+                       help='Create old version backup')
+    parser.add_argument('--restore-old', action='store_true',
+                       help='Restore old version')
+    parser.add_argument('--restore-new', action='store_true',
+                       help='Restore new version')
+    parser.add_argument('--compare', action='store_true',
+                       help='Run full comparison (evaluate both methods and compare)')
+    
     args = parser.parse_args()
+    
+    if args.backup:
+        backup_current_version()
+    
+    if args.create_old:
+        create_old_version()
+    
+    if args.restore_old:
+        restore_old_version()
+    
+    if args.restore_new:
+        restore_new_version()
+    
+    if args.compare:
+        # Backup current (new) version
+        if not backup_current_version():
+            return
+        
+        # Create old version
+        create_old_version()
+        
+        # Evaluate old method
+        restore_old_version()
+        old_success, old_file = run_evaluation(args.scenario, 'old')
+        
+        if not old_success:
+            print("\n" + "="*80)
+            print("ERROR: Old method evaluation failed!")
+            print("="*80)
+            print("\nPossible reasons:")
+            print("1. Demonstration data not found. Run data collection first:")
+            print("   python src/data_collection/highway/rule_expert.py")
+            print("2. Data path is incorrect. Check that ./demonstration_RL_expert/highway/ exists")
+            print("="*80)
+            restore_new_version()
+            return
+        
+        # Evaluate new method
+        restore_new_version()
+        new_success, new_file = run_evaluation(args.scenario, 'new')
+        
+        if not new_success:
+            print("\n" + "="*80)
+            print("ERROR: New method evaluation failed!")
+            print("="*80)
+            print("\nPossible reasons:")
+            print("1. Demonstration data not found. Run data collection first:")
+            print("   python src/data_collection/highway/rule_expert.py")
+            print("2. Data path is incorrect. Check that ./demonstration_RL_expert/highway/ exists")
+            print("="*80)
+            return
+        
+        # Compare results
+        if not os.path.exists(old_file):
+            print(f"\nError: Result file {old_file} not found!")
+            return
+        
+        if not os.path.exists(new_file):
+            print(f"\nError: Result file {new_file} not found!")
+            return
+        
+        compare_results(old_file, new_file)
+        
+        print(f"\nResults saved to:")
+        print(f"  - {old_file}")
+        print(f"  - {new_file}")
 
-    # Check if directories exist
-    if not os.path.exists(args.original_dir):
-        print(f"Error: Original directory not found: {args.original_dir}")
-        exit(1)
+if __name__ == '__main__':
+    main()
 
-    if not os.path.exists(args.sliding_dir):
-        print(f"Warning: Sliding window directory not found yet: {args.sliding_dir}")
-        print("Make sure the sliding window script has completed.")
-        exit(1)
-
-    # Run comparison
-    results = compare_methods(args.original_dir, args.sliding_dir, args.output_dir)

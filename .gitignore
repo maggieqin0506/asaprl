@@ -27,6 +27,8 @@ saved_model/
 *.pth
 *.pkl
 *.pickle
+*.pyc
+*.local
 
 # Environment
 .env

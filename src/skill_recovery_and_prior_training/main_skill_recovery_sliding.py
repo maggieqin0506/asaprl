@@ -8,22 +8,23 @@ from tqdm import tqdm
 # Add project root to path for external packages/modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-# --- CORRECTED IMPORT ---
-# Import the core optimization and transformation functions from your existing file.
+# --- IMPORT FROM SLIDING MODULE ---
+# Import the sliding window recovery functions that support rule expert data (2D trajectories)
 try:
-    from skill_param_recovery import recover_parameter, transform_planning_param_to_latentvar
+    from skill_param_recovery_sliding import recover_parameter, transform_planning_param_to_latentvar
 except ImportError:
     try:
-        from .skill_param_recovery import recover_parameter, transform_planning_param_to_latentvar
+        from .skill_param_recovery_sliding import recover_parameter, transform_planning_param_to_latentvar
     except ImportError:
         # Final fallback check
         try:
-            from src.skill_recovery_and_prior_training.skill_param_recovery import recover_parameter, transform_planning_param_to_latentvar
+            from src.skill_recovery_and_prior_training.skill_param_recovery_sliding import recover_parameter, transform_planning_param_to_latentvar
         except ImportError:
             print("--- CRITICAL IMPORT ERROR ---")
-            print("Cannot find 'recover_parameter' or 'transform_planning_param_to_latentvar' in 'skill_param_recovery.py'.")
+            print("Cannot find 'recover_parameter' or 'transform_planning_param_to_latentvar' in 'skill_param_recovery_sliding.py'.")
+            print("Make sure skill_param_recovery_sliding.py exists in the same directory.")
             sys.exit(1)
-# --- END CORRECTED IMPORT ---
+# --- END IMPORT ---
 
 def sliding_window_recovery(data, args):
     """
