@@ -128,7 +128,7 @@ def transform_latentvar_to_planning_param(latent_var, lat_range=5):
     v1 = (latent_var[2] + 1) * 5
     return lat1, yaw1, v1
 
-def evaluate_method_results(scenario, data_path, method_key='recovered_latent_var', use_ground_truth=False):
+def evaluate_method_results(scenario, data_path, method_key='recovered_latent_var', use_ground_truth=False, max_files=0):
     """
     Evaluate a method's results from pre-computed latent variables.
     
@@ -137,8 +137,15 @@ def evaluate_method_results(scenario, data_path, method_key='recovered_latent_va
         data_path: Path to data directory
         method_key: Key in data dict containing recovered parameters
         use_ground_truth: Whether to compute parameter error (requires 'latent_var' in data)
+        max_files: Maximum number of files to process (0 = all files)
     """
     all_file_lst = [f for f in os.listdir(data_path) if f.endswith('.pickle')]
+    all_file_lst.sort()  # Sort for consistent ordering
+    
+    # Limit number of files if specified
+    if max_files > 0:
+        all_file_lst = all_file_lst[:max_files]
+        print(f"Processing {len(all_file_lst)} files (limited from {len(os.listdir(data_path))} total)")
     
     all_smoothness_metrics = []
     all_matching_metrics = []
@@ -784,6 +791,8 @@ def main():
                        help='Directory to save comparison graphs')
     parser.add_argument('--no_graphs', action='store_true',
                        help='Skip generating comparison graphs')
+    parser.add_argument('--max_files', type=int, default=0,
+                       help='Maximum number of files to process per method (0 = all files). Useful for testing.')
     
     args = parser.parse_args()
     
@@ -835,21 +844,24 @@ def main():
     global_results = evaluate_method_results(
         args.scenario, args.global_data_path, 
         method_key='recovered_latent_var',
-        use_ground_truth=args.use_ground_truth
+        use_ground_truth=args.use_ground_truth,
+        max_files=args.max_files
     )
     
     print("\nEvaluating Sliding Window method...")
     sliding_results = evaluate_method_results(
         args.scenario, args.sliding_data_path,
         method_key='sliding_recovered_latent_var',
-        use_ground_truth=args.use_ground_truth
+        use_ground_truth=args.use_ground_truth,
+        max_files=args.max_files
     )
     
     print("\nEvaluating Fast method...")
     fast_results = evaluate_method_results(
         args.scenario, args.fast_data_path,
         method_key='fast_recovered_latent_var',
-        use_ground_truth=args.use_ground_truth
+        use_ground_truth=args.use_ground_truth,
+        max_files=args.max_files
     )
     
     # Print comparison

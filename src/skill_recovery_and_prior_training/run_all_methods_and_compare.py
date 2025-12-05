@@ -132,6 +132,8 @@ def main():
         ]
         if args.use_ground_truth:
             cmd.append('--use_ground_truth')
+        if args.max_files > 0:
+            cmd.extend(['--max_files', str(args.max_files)])
         
         output_file = os.path.join(project_root, f'comparison_results_{args.scenario}.pkl')
         cmd.extend(['--output_file', output_file])
