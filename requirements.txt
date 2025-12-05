@@ -1,4 +1,4 @@
-setuptools==49.6.0
+setuptools==67.4.0
 metadrive-simulator==0.2.4
 
 

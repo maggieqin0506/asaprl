@@ -6,17 +6,25 @@ import sys
 from tqdm import tqdm
 
 # Add project root to path for external packages/modules
-script_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.dirname(os.path.dirname(script_dir))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-# Add current directory to path for local imports
-if script_dir not in sys.path:
-    sys.path.insert(0, script_dir)
-
-# Import the core optimization and transformation functions from existing file
-from skill_param_recovery import recover_parameter, transform_planning_param_to_latentvar
+# --- IMPORT FROM SLIDING MODULE ---
+# Import the sliding window recovery functions that support rule expert data (2D trajectories)
+try:
+    from skill_param_recovery_sliding import recover_parameter, transform_planning_param_to_latentvar
+except ImportError:
+    try:
+        from .skill_param_recovery_sliding import recover_parameter, transform_planning_param_to_latentvar
+    except ImportError:
+        # Final fallback check
+        try:
+            from src.skill_recovery_and_prior_training.skill_param_recovery_sliding import recover_parameter, transform_planning_param_to_latentvar
+        except ImportError:
+            print("--- CRITICAL IMPORT ERROR ---")
+            print("Cannot find 'recover_parameter' or 'transform_planning_param_to_latentvar' in 'skill_param_recovery_sliding.py'.")
+            print("Make sure skill_param_recovery_sliding.py exists in the same directory.")
+            sys.exit(1)
+# --- END IMPORT ---
 
 def sliding_window_recovery(data, args):
     """
@@ -145,10 +153,9 @@ def main():
     parser.add_argument('--max_files', type=int, default=0, help='Maximum number of .pickle files to process. 0 means all files.')
     args = parser.parse_args()
 
-    # Define paths relative to project root
-    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    input_dir = os.path.join(project_root, f"demonstration_rule_expert/{args.scenario}/")
-    output_dir = os.path.join(project_root, f"demonstration_RL_expert/{args.scenario}_sliding_annotated/")
+    # Define paths
+    input_dir = f"demonstration_rule_expert/{args.scenario}/" 
+    output_dir = f"demonstration_RL_expert/{args.scenario}_sliding_annotated/"
     
     os.makedirs(output_dir, exist_ok=True)
     
@@ -186,4 +193,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

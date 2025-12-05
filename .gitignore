@@ -1,9 +1,36 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
 
-log/saved_model/
+# Data directories (too large)
+demonstration_*/
+comparison_results/
+log/
 saved_model/
-*.pickle
+
+# OS files
+.DS_Store
+*.swp
+*.swo
+
+# IDEs
+.vscode/
+.idea/
+*.iml
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Model files
+*.pth
 *.pkl
-*.pyc
-*.pyc
+*.pickle
 *.pyc
 *.local
+
+# Environment
+.env
+venv/
+env/
