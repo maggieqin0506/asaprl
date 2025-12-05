@@ -13,6 +13,16 @@ import os
 import sys
 import argparse
 from tqdm import tqdm
+import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
+try:
+    import seaborn as sns
+    sns.set_style("whitegrid")
+except ImportError:
+    pass  # seaborn is optional
+plt.rcParams['figure.figsize'] = (12, 8)
+plt.rcParams['font.size'] = 10
 
 # Add project root to path for imports
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -134,6 +144,8 @@ def evaluate_method_results(scenario, data_path, method_key='recovered_latent_va
     all_matching_metrics = []
     all_continuity_metrics = []
     all_param_errors = []
+    all_recovered_trajectories = []
+    all_reference_trajectories = []
     
     prev_recovered_traj = None
     
@@ -216,6 +228,10 @@ def evaluate_method_results(scenario, data_path, method_key='recovered_latent_va
                 print(f"Warning: Skipping trajectory {idx} in file {one_file} due to error: {e}")
                 continue
             
+            # Store trajectories for visualization
+            all_recovered_trajectories.append(recovered_traj.copy())
+            all_reference_trajectories.append(one_traj.copy())
+            
             # Compute metrics
             smoothness = compute_trajectory_smoothness_metrics(recovered_traj)
             all_smoothness_metrics.append(smoothness)
@@ -266,7 +282,408 @@ def evaluate_method_results(scenario, data_path, method_key='recovered_latent_va
             for key in all_param_errors[0].keys()
         }
     
+    # Store trajectories for visualization
+    results['recovered_trajectories'] = all_recovered_trajectories
+    results['reference_trajectories'] = all_reference_trajectories
+    
     return results
+
+def plot_trajectory_comparison(global_results, sliding_results, fast_results, output_dir, max_trajectories=10):
+    """Plot spatial trajectory comparisons for all methods."""
+    # Get trajectory lists
+    ref_trajs = global_results.get('reference_trajectories', [])
+    global_trajs = global_results.get('recovered_trajectories', [])
+    sliding_trajs = sliding_results.get('recovered_trajectories', [])
+    fast_trajs = fast_results.get('recovered_trajectories', [])
+    
+    # Ensure all methods have trajectories
+    min_len = min(len(ref_trajs), len(global_trajs), len(sliding_trajs), len(fast_trajs))
+    if min_len == 0:
+        print("Warning: No trajectories to plot")
+        return
+    
+    # Sample trajectories for visualization (to avoid overcrowding)
+    n_traj = min(max_trajectories, min_len)
+    indices = np.linspace(0, min_len - 1, n_traj, dtype=int)
+    
+    fig, axes = plt.subplots(2, 2, figsize=(16, 16))
+    axes = axes.flatten()
+    
+    for plot_idx, traj_idx in enumerate(indices[:4]):  # Plot first 4 trajectories
+        ax = axes[plot_idx]
+        
+        # Get trajectories
+        ref_traj = ref_trajs[traj_idx]
+        global_traj = global_trajs[traj_idx]
+        sliding_traj = sliding_trajs[traj_idx]
+        fast_traj = fast_trajs[traj_idx]
+        
+        # Plot trajectories
+        ax.plot(ref_traj[:, 0], ref_traj[:, 1], 'k-', linewidth=3, label='Original Path', alpha=0.8, zorder=4)
+        ax.plot(global_traj[:, 0], global_traj[:, 1], 'b-', linewidth=2, label='Global Optimization', alpha=0.7, zorder=3)
+        ax.plot(sliding_traj[:, 0], sliding_traj[:, 1], 'r-', linewidth=2, label='Sliding Window', alpha=0.7, zorder=2)
+        ax.plot(fast_traj[:, 0], fast_traj[:, 1], 'g-', linewidth=2, label='Fast Method', alpha=0.7, zorder=1)
+        
+        # Mark start and end points
+        ax.plot(ref_traj[0, 0], ref_traj[0, 1], 'ko', markersize=10, zorder=5)
+        ax.plot(ref_traj[-1, 0], ref_traj[-1, 1], 'k*', markersize=15, zorder=5)
+        
+        ax.set_xlabel('X Position (m)', fontsize=12)
+        ax.set_ylabel('Y Position (m)', fontsize=12)
+        ax.set_title(f'Trajectory Comparison {traj_idx + 1}', fontsize=14, fontweight='bold')
+        ax.legend(loc='best', fontsize=10)
+        ax.grid(True, alpha=0.3)
+        ax.set_aspect('equal', adjustable='box')
+    
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, 'trajectory_spatial_comparison.png'), dpi=300, bbox_inches='tight')
+    plt.close()
+    print(f"Saved trajectory spatial comparison to {output_dir}/trajectory_spatial_comparison.png")
+
+def plot_metric_comparison_bar(global_results, sliding_results, fast_results, output_dir):
+    """Create bar charts comparing metrics across methods."""
+    metrics_to_plot = {
+        'smoothness': ['mean_curvature', 'max_curvature', 'mean_speed_change', 'mean_yaw_rate'],
+        'matching': ['endpoint_error', 'avg_displacement', 'max_displacement', 'speed_rmse', 'yaw_rmse'],
+        'continuity': ['position_discontinuity', 'velocity_discontinuity', 'yaw_discontinuity']
+    }
+    
+    for category, metric_keys in metrics_to_plot.items():
+        if category not in global_results or category not in sliding_results or category not in fast_results:
+            continue
+        
+        n_metrics = len(metric_keys)
+        if n_metrics == 0:
+            continue
+        
+        fig, axes = plt.subplots(1, n_metrics, figsize=(5*n_metrics, 6))
+        if n_metrics == 1:
+            axes = [axes]
+        
+        for idx, metric_key in enumerate(metric_keys):
+            if metric_key not in global_results[category]:
+                continue
+            
+            ax = axes[idx]
+            methods = ['Original\n(Reference)', 'Global', 'Sliding', 'Fast']
+            values = [
+                0,  # Original path has no recovery error, so 0 for comparison
+                global_results[category][metric_key],
+                sliding_results[category][metric_key],
+                fast_results[category][metric_key]
+            ]
+            
+            colors = ['gray', 'blue', 'red', 'green']
+            bars = ax.bar(methods, values, color=colors, alpha=0.7, edgecolor='black', linewidth=1.5)
+            
+            # Add value labels on bars
+            for bar, val in zip(bars, values):
+                height = bar.get_height()
+                ax.text(bar.get_x() + bar.get_width()/2., height,
+                       f'{val:.4f}',
+                       ha='center', va='bottom', fontsize=9, fontweight='bold')
+            
+            ax.set_ylabel('Metric Value', fontsize=11)
+            ax.set_title(f'{metric_key.replace("_", " ").title()}', fontsize=12, fontweight='bold')
+            ax.grid(True, alpha=0.3, axis='y')
+            ax.set_axisbelow(True)
+        
+        plt.suptitle(f'{category.replace("_", " ").title()} Metrics Comparison', 
+                    fontsize=14, fontweight='bold', y=1.02)
+        plt.tight_layout()
+        plt.savefig(os.path.join(output_dir, f'{category}_metrics_comparison.png'), dpi=300, bbox_inches='tight')
+        plt.close()
+        print(f"Saved {category} metrics comparison to {output_dir}/{category}_metrics_comparison.png")
+
+def plot_metric_comparison_radar(global_results, sliding_results, fast_results, output_dir):
+    """Create radar charts for comprehensive method comparison."""
+    import math
+    
+    # Prepare metrics for radar chart (normalize to 0-1 scale for better visualization)
+    categories = {
+        'Smoothness': ['mean_curvature', 'mean_speed_change', 'mean_yaw_rate'],
+        'Matching': ['endpoint_error', 'avg_displacement', 'speed_rmse'],
+        'Continuity': ['position_discontinuity', 'velocity_discontinuity', 'yaw_discontinuity']
+    }
+    
+    fig, axes = plt.subplots(1, len(categories), figsize=(6*len(categories), 6), subplot_kw=dict(projection='polar'))
+    if len(categories) == 1:
+        axes = [axes]
+    
+    for cat_idx, (cat_name, metric_keys) in enumerate(categories.items()):
+        ax = axes[cat_idx]
+        
+        # Filter available metrics
+        available_metrics = []
+        for mk in metric_keys:
+            for cat in ['smoothness', 'matching', 'continuity']:
+                if cat in global_results and mk in global_results[cat]:
+                    available_metrics.append(mk)
+                    break
+        
+        if len(available_metrics) == 0:
+            continue
+        
+        # Get values
+        angles = [n / float(len(available_metrics)) * 2 * math.pi for n in range(len(available_metrics))]
+        angles += angles[:1]  # Complete the circle
+        
+        global_vals = []
+        sliding_vals = []
+        fast_vals = []
+        
+        for mk in available_metrics:
+            for cat in ['smoothness', 'matching', 'continuity']:
+                if cat in global_results and mk in global_results[cat]:
+                    global_vals.append(global_results[cat][mk])
+                    sliding_vals.append(sliding_results[cat][mk])
+                    fast_vals.append(fast_results[cat][mk])
+                    break
+        
+        # Normalize values (0-1 scale)
+        all_vals = global_vals + sliding_vals + fast_vals
+        max_val = max(all_vals) if all_vals else 1.0
+        min_val = min(all_vals) if all_vals else 0.0
+        range_val = max_val - min_val if max_val != min_val else 1.0
+        
+        global_vals_norm = [(v - min_val) / range_val for v in global_vals]
+        sliding_vals_norm = [(v - min_val) / range_val for v in sliding_vals]
+        fast_vals_norm = [(v - min_val) / range_val for v in fast_vals]
+        
+        global_vals_norm += global_vals_norm[:1]
+        sliding_vals_norm += sliding_vals_norm[:1]
+        fast_vals_norm += fast_vals_norm[:1]
+        
+        # Plot
+        ax.plot(angles, global_vals_norm, 'o-', linewidth=2, label='Global', color='blue', alpha=0.7)
+        ax.fill(angles, global_vals_norm, alpha=0.25, color='blue')
+        ax.plot(angles, sliding_vals_norm, 'o-', linewidth=2, label='Sliding', color='red', alpha=0.7)
+        ax.fill(angles, sliding_vals_norm, alpha=0.25, color='red')
+        ax.plot(angles, fast_vals_norm, 'o-', linewidth=2, label='Fast', color='green', alpha=0.7)
+        ax.fill(angles, fast_vals_norm, alpha=0.25, color='green')
+        
+        ax.set_xticks(angles[:-1])
+        ax.set_xticklabels([mk.replace('_', ' ').title() for mk in available_metrics], fontsize=9)
+        ax.set_ylim(0, 1)
+        ax.set_title(cat_name, fontsize=12, fontweight='bold', pad=20)
+        ax.grid(True)
+        ax.legend(loc='upper right', bbox_to_anchor=(1.3, 1.1), fontsize=9)
+    
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, 'radar_chart_comparison.png'), dpi=300, bbox_inches='tight')
+    plt.close()
+    print(f"Saved radar chart comparison to {output_dir}/radar_chart_comparison.png")
+
+def plot_trajectory_metrics_over_time(global_results, sliding_results, fast_results, output_dir):
+    """Plot how metrics vary across trajectory segments."""
+    # Compute per-trajectory metrics
+    def compute_per_traj_metrics(traj_list, ref_traj_list):
+        metrics_list = []
+        for traj, ref_traj in zip(traj_list, ref_traj_list):
+            matching = compute_trajectory_matching_metrics(traj, ref_traj)
+            smoothness = compute_trajectory_smoothness_metrics(traj)
+            metrics_list.append({**matching, **smoothness})
+        return metrics_list
+    
+    global_traj_list = global_results.get('recovered_trajectories', [])
+    sliding_traj_list = sliding_results.get('recovered_trajectories', [])
+    fast_traj_list = fast_results.get('recovered_trajectories', [])
+    ref_traj_list = global_results.get('reference_trajectories', [])
+    
+    if len(global_traj_list) == 0:
+        return
+    
+    global_metrics = compute_per_traj_metrics(global_traj_list, ref_traj_list)
+    sliding_metrics = compute_per_traj_metrics(sliding_traj_list, ref_traj_list)
+    fast_metrics = compute_per_traj_metrics(fast_traj_list, ref_traj_list)
+    
+    # Find minimum length to ensure all methods have the same number of trajectories
+    min_len = min(len(global_metrics), len(sliding_metrics), len(fast_metrics))
+    if min_len == 0:
+        print("Warning: No metrics to plot over time")
+        return
+    
+    # Warn if lengths differ
+    if len(global_metrics) != len(sliding_metrics) or len(global_metrics) != len(fast_metrics):
+        print(f"Note: Different methods have different numbers of trajectories. "
+              f"Plotting first {min_len} trajectories for comparison.")
+        print(f"  Global: {len(global_metrics)}, Sliding: {len(sliding_metrics)}, Fast: {len(fast_metrics)}")
+    
+    # Truncate to minimum length
+    global_metrics = global_metrics[:min_len]
+    sliding_metrics = sliding_metrics[:min_len]
+    fast_metrics = fast_metrics[:min_len]
+    
+    # Plot key metrics over trajectory index
+    key_metrics = ['endpoint_error', 'avg_displacement', 'mean_curvature', 'mean_speed_change']
+    
+    n_metrics = len([m for m in key_metrics if m in global_metrics[0]])
+    if n_metrics == 0:
+        return
+    
+    fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+    axes = axes.flatten()
+    
+    traj_indices = np.arange(min_len)
+    
+    for idx, metric_key in enumerate(key_metrics[:4]):
+        if metric_key not in global_metrics[0]:
+            continue
+        
+        ax = axes[idx]
+        
+        global_vals = [m[metric_key] for m in global_metrics]
+        sliding_vals = [m[metric_key] for m in sliding_metrics]
+        fast_vals = [m[metric_key] for m in fast_metrics]
+        
+        ax.plot(traj_indices, global_vals, 'b-o', linewidth=2, markersize=4, label='Global', alpha=0.7)
+        ax.plot(traj_indices, sliding_vals, 'r-s', linewidth=2, markersize=4, label='Sliding', alpha=0.7)
+        ax.plot(traj_indices, fast_vals, 'g-^', linewidth=2, markersize=4, label='Fast', alpha=0.7)
+        
+        ax.set_xlabel('Trajectory Index', fontsize=11)
+        ax.set_ylabel('Metric Value', fontsize=11)
+        ax.set_title(f'{metric_key.replace("_", " ").title()} Over Trajectories', fontsize=12, fontweight='bold')
+        ax.legend(loc='best', fontsize=10)
+        ax.grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, 'metrics_over_trajectories.png'), dpi=300, bbox_inches='tight')
+    plt.close()
+    print(f"Saved metrics over trajectories to {output_dir}/metrics_over_trajectories.png")
+
+def plot_summary_comparison(global_results, sliding_results, fast_results, output_dir):
+    """Create a summary comparison plot with key metrics."""
+    fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+    
+    # 1. Overall matching error comparison
+    ax1 = axes[0, 0]
+    if 'matching' in global_results:
+        metrics = ['endpoint_error', 'avg_displacement', 'speed_rmse', 'yaw_rmse']
+        methods = ['Global', 'Sliding', 'Fast']
+        x = np.arange(len(metrics))
+        width = 0.25
+        
+        global_vals = [global_results['matching'].get(m, 0) for m in metrics]
+        sliding_vals = [sliding_results['matching'].get(m, 0) for m in metrics]
+        fast_vals = [fast_results['matching'].get(m, 0) for m in metrics]
+        
+        ax1.bar(x - width, global_vals, width, label='Global', color='blue', alpha=0.7)
+        ax1.bar(x, sliding_vals, width, label='Sliding', color='red', alpha=0.7)
+        ax1.bar(x + width, fast_vals, width, label='Fast', color='green', alpha=0.7)
+        
+        ax1.set_xlabel('Metrics', fontsize=11)
+        ax1.set_ylabel('Error Value', fontsize=11)
+        ax1.set_title('Trajectory Matching Error Comparison', fontsize=12, fontweight='bold')
+        ax1.set_xticks(x)
+        ax1.set_xticklabels([m.replace('_', ' ').title() for m in metrics], rotation=45, ha='right')
+        ax1.legend()
+        ax1.grid(True, alpha=0.3, axis='y')
+    
+    # 2. Smoothness comparison
+    ax2 = axes[0, 1]
+    if 'smoothness' in global_results:
+        metrics = ['mean_curvature', 'mean_speed_change', 'mean_yaw_rate']
+        x = np.arange(len(metrics))
+        width = 0.25
+        
+        global_vals = [global_results['smoothness'].get(m, 0) for m in metrics]
+        sliding_vals = [sliding_results['smoothness'].get(m, 0) for m in metrics]
+        fast_vals = [fast_results['smoothness'].get(m, 0) for m in metrics]
+        
+        ax2.bar(x - width, global_vals, width, label='Global', color='blue', alpha=0.7)
+        ax2.bar(x, sliding_vals, width, label='Sliding', color='red', alpha=0.7)
+        ax2.bar(x + width, fast_vals, width, label='Fast', color='green', alpha=0.7)
+        
+        ax2.set_xlabel('Metrics', fontsize=11)
+        ax2.set_ylabel('Smoothness Value', fontsize=11)
+        ax2.set_title('Trajectory Smoothness Comparison', fontsize=12, fontweight='bold')
+        ax2.set_xticks(x)
+        ax2.set_xticklabels([m.replace('_', ' ').title() for m in metrics], rotation=45, ha='right')
+        ax2.legend()
+        ax2.grid(True, alpha=0.3, axis='y')
+    
+    # 3. Continuity comparison
+    ax3 = axes[1, 0]
+    if 'continuity' in global_results:
+        metrics = ['position_discontinuity', 'velocity_discontinuity', 'yaw_discontinuity']
+        x = np.arange(len(metrics))
+        width = 0.25
+        
+        global_vals = [global_results['continuity'].get(m, 0) for m in metrics]
+        sliding_vals = [sliding_results['continuity'].get(m, 0) for m in metrics]
+        fast_vals = [fast_results['continuity'].get(m, 0) for m in metrics]
+        
+        ax3.bar(x - width, global_vals, width, label='Global', color='blue', alpha=0.7)
+        ax3.bar(x, sliding_vals, width, label='Sliding', color='red', alpha=0.7)
+        ax3.bar(x + width, fast_vals, width, label='Fast', color='green', alpha=0.7)
+        
+        ax3.set_xlabel('Metrics', fontsize=11)
+        ax3.set_ylabel('Discontinuity Value', fontsize=11)
+        ax3.set_title('Segment Continuity Comparison', fontsize=12, fontweight='bold')
+        ax3.set_xticks(x)
+        ax3.set_xticklabels([m.replace('_', ' ').title() for m in metrics], rotation=45, ha='right')
+        ax3.legend()
+        ax3.grid(True, alpha=0.3, axis='y')
+    
+    # 4. Overall performance score (composite metric)
+    ax4 = axes[1, 1]
+    if 'matching' in global_results and 'smoothness' in global_results:
+        # Create a composite score (lower is better for all metrics)
+        def compute_score(results):
+            score = 0
+            if 'matching' in results:
+                score += results['matching'].get('endpoint_error', 0) * 0.3
+                score += results['matching'].get('avg_displacement', 0) * 0.2
+            if 'smoothness' in results:
+                score += results['smoothness'].get('mean_curvature', 0) * 0.2
+                score += results['smoothness'].get('mean_speed_change', 0) * 0.15
+            if 'continuity' in results:
+                score += results['continuity'].get('position_discontinuity', 0) * 0.15
+            return score
+        
+        scores = {
+            'Global': compute_score(global_results),
+            'Sliding': compute_score(sliding_results),
+            'Fast': compute_score(fast_results)
+        }
+        
+        colors = ['blue', 'red', 'green']
+        bars = ax4.bar(scores.keys(), scores.values(), color=colors, alpha=0.7, edgecolor='black', linewidth=1.5)
+        
+        # Add value labels
+        for bar, (method, score) in zip(bars, scores.items()):
+            height = bar.get_height()
+            ax4.text(bar.get_x() + bar.get_width()/2., height,
+                   f'{score:.4f}',
+                   ha='center', va='bottom', fontsize=11, fontweight='bold')
+        
+        ax4.set_ylabel('Composite Score (Lower is Better)', fontsize=11)
+        ax4.set_title('Overall Performance Comparison', fontsize=12, fontweight='bold')
+        ax4.grid(True, alpha=0.3, axis='y')
+    
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, 'summary_comparison.png'), dpi=300, bbox_inches='tight')
+    plt.close()
+    print(f"Saved summary comparison to {output_dir}/summary_comparison.png")
+
+def generate_all_graphs(global_results, sliding_results, fast_results, output_dir):
+    """Generate all comparison graphs."""
+    os.makedirs(output_dir, exist_ok=True)
+    
+    print("\n" + "="*80)
+    print("Generating comparison graphs...")
+    print("="*80)
+    
+    # Generate all plots
+    plot_trajectory_comparison(global_results, sliding_results, fast_results, output_dir)
+    plot_metric_comparison_bar(global_results, sliding_results, fast_results, output_dir)
+    plot_metric_comparison_radar(global_results, sliding_results, fast_results, output_dir)
+    plot_trajectory_metrics_over_time(global_results, sliding_results, fast_results, output_dir)
+    plot_summary_comparison(global_results, sliding_results, fast_results, output_dir)
+    
+    print("\n" + "="*80)
+    print(f"All graphs saved to: {output_dir}")
+    print("="*80)
 
 def print_comparison(global_results, sliding_results, fast_results):
     """Print comparison between all three methods."""
@@ -363,6 +780,10 @@ def main():
                        help='Compute parameter error (requires ground truth in data)')
     parser.add_argument('--output_file', type=str, default=None,
                        help='Save comparison results to file')
+    parser.add_argument('--output_dir', type=str, default=None,
+                       help='Directory to save comparison graphs')
+    parser.add_argument('--no_graphs', action='store_true',
+                       help='Skip generating comparison graphs')
     
     args = parser.parse_args()
     
@@ -433,6 +854,19 @@ def main():
     
     # Print comparison
     print_comparison(global_results, sliding_results, fast_results)
+    
+    # Generate graphs (by default)
+    if not args.no_graphs:
+        if args.output_dir is None:
+            # Default output directory
+            output_dir = os.path.join(project_root, f'trajectory_comparisons/{args.scenario}')
+        else:
+            if not os.path.isabs(args.output_dir):
+                output_dir = os.path.join(project_root, args.output_dir)
+            else:
+                output_dir = args.output_dir
+        
+        generate_all_graphs(global_results, sliding_results, fast_results, output_dir)
     
     # Save results
     if args.output_file:
