@@ -204,6 +204,8 @@ The script generates:
 6. **metrics_over_trajectories.png** - Line plots showing how metrics vary across trajectory segments
 7. **summary_comparison.png** - Summary plots with key metrics and overall performance scores
 
+**📊 For detailed explanation of how to interpret these graphs, see [GRAPH_INTERPRETATION_GUIDE.md](GRAPH_INTERPRETATION_GUIDE.md)**
+
 ### Step 3: View Results
 
 All graphs are saved as high-resolution PNG files (300 DPI) in:
@@ -275,12 +277,11 @@ python src/data_collection/highway/rule_expert.py
 
 # Step 1 & 2: Run all methods and compare (one command)
 python src/skill_recovery_and_prior_training/run_all_methods_and_compare.py \
-    --scenario highway \
-    --output_file comparison_results_highway.pkl
+    --scenario highway
 
 # Results will be in:
 # - trajectory_comparisons/highway/ (graphs)
-# - comparison_results_highway.pkl (numerical results)
+# - comparison_results_highway.pkl (numerical results - automatically created)
 ```
 
 ### Intersection Scenario
@@ -293,12 +294,11 @@ python src/data_collection/intersection/rule_expert.py
 
 # Step 1 & 2: Run all methods and compare (one command)
 python src/skill_recovery_and_prior_training/run_all_methods_and_compare.py \
-    --scenario intersection \
-    --output_file comparison_results_intersection.pkl
+    --scenario intersection
 
 # Results will be in:
 # - trajectory_comparisons/intersection/ (graphs)
-# - comparison_results_intersection.pkl (numerical results)
+# - comparison_results_intersection.pkl (numerical results - automatically created)
 ```
 
 ### Roundabout Scenario
@@ -311,12 +311,11 @@ python src/data_collection/roundabout/rule_expert.py
 
 # Step 1 & 2: Run all methods and compare (one command)
 python src/skill_recovery_and_prior_training/run_all_methods_and_compare.py \
-    --scenario roundabout \
-    --output_file comparison_results_roundabout.pkl
+    --scenario roundabout
 
 # Results will be in:
 # - trajectory_comparisons/roundabout/ (graphs)
-# - comparison_results_roundabout.pkl (numerical results)
+# - comparison_results_roundabout.pkl (numerical results - automatically created)
 ```
 
 ## Example: Quick Test (Limited Files)
@@ -436,7 +435,7 @@ Where `{scenario}` can be `highway`, `intersection`, or `roundabout`.
 
 ### Comparison Results:
 - `trajectory_comparisons/{scenario}/` - Directory with all comparison graphs
-- `comparison_results_{scenario}.pkl` - Numerical results (if --output_file specified)
+- `comparison_results_{scenario}.pkl` - Numerical results (automatically created by `run_all_methods_and_compare.py`)
 
 ### Graph Files:
 1. `trajectory_spatial_comparison.png` - Spatial trajectory overlays
@@ -450,8 +449,9 @@ Where `{scenario}` can be `highway`, `intersection`, or `roundabout`.
 ## Next Steps
 
 After viewing the graphs:
-1. Analyze which method performs best for your use case
-2. Check smoothness vs. accuracy trade-offs
-3. Review trajectory visualizations to see qualitative differences
-4. Use the best method for downstream tasks (e.g., actor pretraining)
+1. **Read [GRAPH_INTERPRETATION_GUIDE.md](GRAPH_INTERPRETATION_GUIDE.md)** for detailed explanation of each graph type
+2. Analyze which method performs best for your use case
+3. Check smoothness vs. accuracy trade-offs
+4. Review trajectory visualizations to see qualitative differences
+5. Use the best method for downstream tasks (e.g., actor pretraining)
 
