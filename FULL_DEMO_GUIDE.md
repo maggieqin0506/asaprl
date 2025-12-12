@@ -180,17 +180,17 @@ If you used the unified script, graphs are generated automatically. Otherwise, r
 **Highway Scenario:**
 ```bash
 # From project root
-python src/skill_recovery_and_prior_training/compare_all_methods.py --scenario highway
+python src/skill_recovery_and_prior_training/compare_recovery_methods.py --scenario highway
 ```
 
 **Intersection Scenario:**
 ```bash
-python src/skill_recovery_and_prior_training/compare_all_methods.py --scenario intersection
+python src/skill_recovery_and_prior_training/compare_recovery_methods.py --scenario intersection
 ```
 
 **Roundabout Scenario:**
 ```bash
-python src/skill_recovery_and_prior_training/compare_all_methods.py --scenario roundabout
+python src/skill_recovery_and_prior_training/compare_recovery_methods.py --scenario roundabout
 ```
 
 **Graphs will be saved to:** `trajectory_comparisons/{scenario}/`
@@ -215,21 +215,21 @@ You can also save the numerical comparison results:
 
 **Highway Scenario:**
 ```bash
-python src/skill_recovery_and_prior_training/compare_all_methods.py \
+python src/skill_recovery_and_prior_training/compare_recovery_methods.py \
     --scenario highway \
     --output_file comparison_results_highway.pkl
 ```
 
 **Intersection Scenario:**
 ```bash
-python src/skill_recovery_and_prior_training/compare_all_methods.py \
+python src/skill_recovery_and_prior_training/compare_recovery_methods.py \
     --scenario intersection \
     --output_file comparison_results_intersection.pkl
 ```
 
 **Roundabout Scenario:**
 ```bash
-python src/skill_recovery_and_prior_training/compare_all_methods.py \
+python src/skill_recovery_and_prior_training/compare_recovery_methods.py \
     --scenario roundabout \
     --output_file comparison_results_roundabout.pkl
 ```
@@ -252,7 +252,7 @@ python src/skill_recovery_and_prior_training/run_all_methods_and_compare.py \
 ### Comparison Script Options
 
 ```bash
-python src/skill_recovery_and_prior_training/compare_all_methods.py \
+python src/skill_recovery_and_prior_training/compare_recovery_methods.py \
     --scenario {highway|intersection|roundabout} \
     --global_data_path /custom/path/    # Custom path for global method
     --sliding_data_path /custom/path/   # Custom path for sliding method
@@ -407,13 +407,13 @@ If comparison fails because annotated data is missing:
 2. **Then run comparison:**
    ```bash
    # Highway
-   python src/skill_recovery_and_prior_training/compare_all_methods.py --scenario highway
+   python src/skill_recovery_and_prior_training/compare_recovery_methods.py --scenario highway
    
    # Intersection
-   python src/skill_recovery_and_prior_training/compare_all_methods.py --scenario intersection
+   python src/skill_recovery_and_prior_training/compare_recovery_methods.py --scenario intersection
    
    # Roundabout
-   python src/skill_recovery_and_prior_training/compare_all_methods.py --scenario roundabout
+   python src/skill_recovery_and_prior_training/compare_recovery_methods.py --scenario roundabout
    ```
 
 ### Different Number of Trajectories
