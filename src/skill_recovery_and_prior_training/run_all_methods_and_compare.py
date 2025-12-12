@@ -127,7 +127,7 @@ def main():
         
         cmd = [
             sys.executable,
-            'src/skill_recovery_and_prior_training/compare_recovery_methods.py',
+            'src/skill_recovery_and_prior_training/compare_all_methods.py',
             '--scenario', args.scenario
         ]
         if args.use_ground_truth:

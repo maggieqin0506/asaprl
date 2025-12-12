@@ -8,7 +8,7 @@ The easiest way to test with just one file:
 
 ```bash
 # Test comparison with just 1 file
-python src/skill_recovery_and_prior_training/compare_recovery_methods.py \
+python src/skill_recovery_and_prior_training/compare_all_methods.py \
     --scenario highway \
     --max_files 1
 ```
@@ -35,7 +35,7 @@ cp demonstration_RL_expert/highway_annotated/highway_expert_data_1.pickle \
    demonstration_RL_expert/highway_annotated_test/
 
 # Run comparison on test directory
-python src/skill_recovery_and_prior_training/compare_recovery_methods.py \
+python src/skill_recovery_and_prior_training/compare_all_methods.py \
     --scenario highway \
     --global_data_path demonstration_RL_expert/highway_annotated_test
 ```
@@ -61,7 +61,7 @@ python src/skill_recovery_and_prior_training/main_skill_recovery_fast.py \
     --max_files 1
 
 # Then compare (will use the 1 file from each method)
-python src/skill_recovery_and_prior_training/compare_recovery_methods.py \
+python src/skill_recovery_and_prior_training/compare_all_methods.py \
     --scenario highway \
     --max_files 1
 ```
@@ -101,12 +101,12 @@ If it's truly frozen:
 3. **Test with fewer files:**
    ```bash
    # Start with 1 file
-   python src/skill_recovery_and_prior_training/compare_recovery_methods.py \
+   python src/skill_recovery_and_prior_training/compare_all_methods.py \
        --scenario highway \
        --max_files 1
    
    # If that works, try 5 files
-   python src/skill_recovery_and_prior_training/compare_recovery_methods.py \
+   python src/skill_recovery_and_prior_training/compare_all_methods.py \
        --scenario highway \
        --max_files 5
    
@@ -125,7 +125,7 @@ If it's truly frozen:
 **Solution:**
 ```bash
 # Process files in smaller batches
-python src/skill_recovery_and_prior_training/compare_recovery_methods.py \
+python src/skill_recovery_and_prior_training/compare_all_methods.py \
     --scenario highway \
     --max_files 10  # Process 10 at a time
 ```
@@ -155,7 +155,7 @@ done
 **Solution:**
 ```bash
 # Skip graphs to test if that's the issue
-python src/skill_recovery_and_prior_training/compare_recovery_methods.py \
+python src/skill_recovery_and_prior_training/compare_all_methods.py \
     --scenario highway \
     --no_graphs
 
@@ -204,17 +204,17 @@ For quick testing, use this workflow:
 
 ```bash
 # 1. Test with 1 file first
-python src/skill_recovery_and_prior_training/compare_recovery_methods.py \
+python src/skill_recovery_and_prior_training/compare_all_methods.py \
     --scenario highway \
     --max_files 1
 
 # 2. If successful, test with 5 files
-python src/skill_recovery_and_prior_training/compare_recovery_methods.py \
+python src/skill_recovery_and_prior_training/compare_all_methods.py \
     --scenario highway \
     --max_files 5
 
 # 3. If that works, run full comparison
-python src/skill_recovery_and_prior_training/compare_recovery_methods.py \
+python src/skill_recovery_and_prior_training/compare_all_methods.py \
     --scenario highway
 ```
 
@@ -224,7 +224,7 @@ To see progress in real-time:
 
 ```bash
 # Run with verbose output (if available)
-python src/skill_recovery_and_prior_training/compare_recovery_methods.py \
+python src/skill_recovery_and_prior_training/compare_all_methods.py \
     --scenario highway \
     --max_files 10
 
@@ -276,7 +276,7 @@ If recovery methods haven't run yet, add ~3-9 minutes for those.
 5. **Try minimal test:**
    ```bash
    # Test with absolute minimum
-   python src/skill_recovery_and_prior_training/compare_recovery_methods.py \
+   python src/skill_recovery_and_prior_training/compare_all_methods.py \
        --scenario highway \
        --max_files 1 \
        --no_graphs

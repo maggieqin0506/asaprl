@@ -91,7 +91,7 @@ To compare the old (point-wise) and new (trajectory-level) methods:
 
 ```bash
 cd src/skill_recovery_and_prior_training
-python compare_code_versions.py --scenario highway --compare
+python compare_methods.py --scenario highway --compare
 ```
 
 This script will:
@@ -110,17 +110,17 @@ If you want more control:
 cd src/skill_recovery_and_prior_training
 
 # Step 1: Backup current version
-python compare_code_versions.py --backup
+python compare_methods.py --backup
 
 # Step 2: Create old version backup
-python compare_code_versions.py --create-old
+python compare_methods.py --create-old
 
 # Step 3: Restore old version and evaluate
-python compare_code_versions.py --restore-old
+python compare_methods.py --restore-old
 python evaluate_recovery_improvement.py --scenario highway --output_file results_old.pkl
 
 # Step 4: Restore new version and evaluate
-python compare_code_versions.py --restore-new
+python compare_methods.py --restore-new
 python evaluate_recovery_improvement.py --scenario highway --output_file results_new.pkl
 
 # Step 5: Compare results (you can write a simple script to load and compare the pickle files)
