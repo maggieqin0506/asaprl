@@ -162,16 +162,37 @@ def recover_parameter(reference_traj, current_v, current_a, horizon, lat_bound =
     i_lat, i_yaw1, i_v1 = 0, 0, 5
     for i_yaw1 in [-15, 15]:
         u_init = np.array([i_lat, i_yaw1, i_v1]) # lat, yaw1, v1
-        u_solution = minimize(cost_function, u_init, (current_v, current_a, horizon, reference_traj),
-                                        method='SLSQP',
-                                        bounds=bounds,
-                                        tol = 1e-5)
-        lat1 = u_solution.x[0]
-        yaw1 = u_solution.x[1]
-        v1 = u_solution.x[2]
-        cost = u_solution.fun
-        recovered_lat1, recovered_yaw1, current_v1, current_a, recovered_v1 = dynamic_constraint(lat1, yaw1, current_v, current_a, v1, horizon)
-        recover_dict[len(recover_dict)] = {'error': cost, 'param': [recovered_lat1, recovered_yaw1, recovered_v1]}
+        # Clamp initial guess to be strictly within bounds to avoid constraint violations
+        for j in range(3):
+            lower, upper = bounds[j]
+            u_init[j] = np.clip(u_init[j], lower + 1e-4, upper - 1e-4)
+        
+        try:
+            u_solution = minimize(cost_function, u_init, (current_v, current_a, horizon, reference_traj),
+                                            method='SLSQP',
+                                            bounds=bounds,
+                                            tol = 1e-5)
+            
+            # Verify solution is within bounds
+            if not u_solution.success:
+                # If optimization failed, use initial guess as fallback
+                lat1, yaw1, v1 = u_init
+            else:
+                # Clamp solution to bounds in case of numerical issues
+                lat1 = np.clip(u_solution.x[0], bounds[0][0], bounds[0][1])
+                yaw1 = np.clip(u_solution.x[1], bounds[1][0], bounds[1][1])
+                v1 = np.clip(u_solution.x[2], bounds[2][0], bounds[2][1])
+            
+            cost = u_solution.fun if u_solution.success else cost_function(u_init, current_v, current_a, horizon, reference_traj)
+            recovered_lat1, recovered_yaw1, current_v1, current_a, recovered_v1 = dynamic_constraint(lat1, yaw1, current_v, current_a, v1, horizon)
+            recover_dict[len(recover_dict)] = {'error': cost, 'param': [recovered_lat1, recovered_yaw1, recovered_v1]}
+        except Exception as e:
+            # If optimization completely fails, use initial guess
+            print(f"Warning: Optimization failed with error: {e}. Using initial guess.")
+            lat1, yaw1, v1 = u_init
+            cost = cost_function(u_init, current_v, current_a, horizon, reference_traj)
+            recovered_lat1, recovered_yaw1, current_v1, current_a, recovered_v1 = dynamic_constraint(lat1, yaw1, current_v, current_a, v1, horizon)
+            recover_dict[len(recover_dict)] = {'error': cost, 'param': [recovered_lat1, recovered_yaw1, recovered_v1]}
     min_key = min(recover_dict, key=lambda x: recover_dict[x]['error'])
     recovered_lat1, recovered_yaw1, recovered_v1 = recover_dict[min_key]['param']
     print('recovered skill param: lat {}, yaw {}, speed {}'.format(recovered_lat1, recovered_yaw1, recovered_v1))

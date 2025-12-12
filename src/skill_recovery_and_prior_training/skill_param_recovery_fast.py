@@ -204,9 +204,24 @@ def recover_parameter_fast(all_reference_trajs, all_current_vs, horizon, lat_bou
 
         # Fast local minimization
         # L-BFGS-B is good, but for speed we could even reduce tolerance or maxiter
-        res = minimize(cost_function, u_local_init, (current_v, 0, horizon, reference_traj),
-                       method='L-BFGS-B', bounds=bounds, tol=1e-2, options={'maxiter': 10})
-        u_list.append(res.x)
+        try:
+            res = minimize(cost_function, u_local_init, (current_v, 0, horizon, reference_traj),
+                           method='L-BFGS-B', bounds=bounds, tol=1e-2, options={'maxiter': 10})
+            
+            # Verify solution is within bounds and clamp if needed
+            if res.success:
+                u_result = res.x.copy()
+                for j in range(3):
+                    lower, upper = bounds[j]
+                    u_result[j] = np.clip(u_result[j], lower, upper)
+                u_list.append(u_result)
+            else:
+                # If optimization failed, use initial guess
+                u_list.append(u_local_init.copy())
+        except Exception as e:
+            # If optimization completely fails, use initial guess
+            print(f"Warning: Fast recovery optimization failed for segment {i}: {e}. Using initial guess.")
+            u_list.append(u_local_init.copy())
         
     u_array = np.array(u_list)
     
