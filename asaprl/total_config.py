@@ -26,6 +26,7 @@ exp_config = {
             'lat_range': 30,
             'camera_height': 70,
             'use_chase_camera_follow_lane': True,
+            'map': 'OSOS',
             'reward_w_pass_car': 0.1,
             'reward_w_on_lane': 0,
             'reward_w_out_of_road': -5,
