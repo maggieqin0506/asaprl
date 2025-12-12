@@ -151,8 +151,8 @@ class annotate_data():
         self.lat_range = lat_range
         self.action_shape = action_shape
         # Use rule expert data for consistency with other methods
-        self.load_data_path = os.path.join('demonstration_rule_expert', self.scenario)
-        self.save_data_path = os.path.join('demonstration_RL_expert', f'{self.scenario}_sliding_annotated')
+        self.load_data_path = 'demonstration_rule_expert/{}/'.format(self.scenario)
+        self.save_data_path = 'demonstration_RL_expert/{}_sliding_annotated/'.format(self.scenario)
         if not os.path.exists(self.save_data_path):
             os.makedirs(self.save_data_path)
         self.annotate_all_data()

@@ -1,35 +1,14 @@
-"""
-Temporary Backup File
-
-This is a backup copy of skill_param_recovery.py created during code version comparison.
-It should not be used directly - use skill_param_recovery.py instead.
-
-This file is kept for reference only and may be deleted if no longer needed.
-"""
-
+import matplotlib.pyplot as plt
+import math, pdb
+import numpy as np
+import matplotlib.pyplot as plt
+import time
+from scipy.optimize import minimize
+import random
 import os
 import pickle
 import copy
-import numpy as np
-from scipy.optimize import minimize
-from asaprl.policy.planning_model import dynamic_constraint, motion_skill_model
-
-# Constants (matching skill_param_recovery.py)
-YAW_WEIGHT = 0.1
-CURVATURE_WEIGHT = 0.1
-SPEED_WEIGHT = 0.5
-JERK_WEIGHT = 0.3
-ENDPOINT_WEIGHT = 2.0
-SPEED_DIFF_WEIGHT = 2.0
-PATH_LENGTH_WEIGHT = 0.5
-SPEED_SMOOTHNESS_WEIGHT = 0.5
-DEFAULT_HORIZON = 10
-DEFAULT_LAT_BOUND = 5
-DEFAULT_LAT_RANGE = 5
-INITIAL_YAW_OPTIONS = [-15, 15]
-INITIAL_V = 5.0
-MIN_SPEED = 0.1
-MAX_SPEED = 9.9
+from asaprl.policy.planning_model import PathParam, SpeedParam, dynamic_constraint, dist_constraint, motion_skill_model
 
 def compute_trajectory_smoothness_penalty(traj):
     """
